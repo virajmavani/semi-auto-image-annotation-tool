@@ -23,9 +23,6 @@ Semi Automatic Image Annotation Toolbox with RetinaNet as the suggesting algorit
 For, Python >= 3.5
 
 ### Usage
-
-'''
-
+```
 python main.py
-
-'''
+```
