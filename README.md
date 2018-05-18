@@ -12,6 +12,8 @@ Semi Automatic Image Annotation Toolbox with RetinaNet as the suggesting algorit
    Please make sure `tensorflow` is installed as per your systems requirements.
    Also, make sure Keras 2.1.3 or higher is installed.
 
+3) Download the [pretrained model] (https://github.com/fizyr/keras-retinanet/releases/download/0.2/resnet50_coco_best_v2.0.2.h5) and save it in a new directory named "snapshots" in the root of the repository.
+
 ### Dependencies
 
 1) Tensorflow >= 1.7.0
