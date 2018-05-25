@@ -1,0 +1,2 @@
+h5py==2.8.0rc1
+keras-retinanet==0.3.1

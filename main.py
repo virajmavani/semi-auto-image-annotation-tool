@@ -2,13 +2,15 @@ import os
 import ntpath
 from tkinter import *
 from tkinter import filedialog
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 import random
 
 import keras
 
-from keras_retinanet.models.resnet import custom_objects
-from keras_retinanet.utils.image import preprocess_image
+from keras_retinanet import models
+from keras_retinanet.utils.image import read_image_bgr, preprocess_image, resize_image
+from keras_retinanet.utils.visualization import draw_box, draw_caption
+from keras_retinanet.utils.colors import label_color
 
 # import miscellaneous modules
 import cv2
@@ -27,9 +29,9 @@ def get_session():
 
 keras.backend.tensorflow_backend.set_session(get_session())
 
-model_path = os.path.join('.', 'snapshots', 'resnet50_coco_best_v2.0.2.h5')
+model_path = os.path.join('.', 'snapshots', 'resnet50_coco_best_v2.1.0.h5')
 
-model = keras.models.load_model(model_path, custom_objects=custom_objects)
+model = models.load_model(model_path, backbone_name='resnet50')
 # print(model.summary())
 
 # load label to names mapping for visualization purposes
@@ -53,13 +55,14 @@ class MainGUI:
         self.bboxIdList = []
         self.bboxList = []
         self.bboxId = None
+        self.zoomImgId = None
         self.hl = None
         self.vl = None
         self.filename = None
         self.objectLabelList = []
 
         # initialize mouse state
-        self.STATE = {'click': 0, 'x': 0, 'y': 0}
+        self.STATE = {'x': 0, 'y': 0}
         self.STATE_COCO = {'click': 0}
 
         # initialize annotation file
@@ -93,18 +96,19 @@ class MainGUI:
         self.mb["menu"] = self.mb.menu
         self.addCocoBtn = Button(self.ctrlPanel, text="+", command=self.add_labels_coco)
         self.addCocoBtn.pack(fill=X, side=TOP)
-        # self.mb.menu.bind("<Button-1>", self.add_labels_coco)
-        # self.mb.menu.focus_set()
+        self.zoomPanelLabel = Label(self.ctrlPanel, text="Zoom Panel")
+        self.zoomPanelLabel.pack(fill=X, side=TOP)
+        self.zoomcanvas = Canvas(self.ctrlPanel, width=150, height=150)
+        self.zoomcanvas.pack(fill=X, side=TOP, anchor='center')
 
         # Image Editing Region
         self.canvas = Canvas(self.frame, width=500, height=500)
         self.canvas.grid(row=0, column=1, sticky=W + N)
         self.canvas.bind("<Button-1>", self.mouse_click)
-        self.canvas.bind("<Motion>", self.mouse_move)
+        self.canvas.bind("<Motion>", self.mouse_move, "+")
+        self.canvas.bind("<B1-Motion>", self.mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.mouse_release)
         self.parent.bind("Escape", self.cancel_bbox)
-        # self.parent.bind("s", self.cancel_bbox)
-        # self.parent.bind("a", self.open_previous)  # press 'a' to go backward
-        # self.parent.bind("d", self.open_next)  # press 'd' to go forward
 
         # Labels and Bounding Box Lists Panel
         self.listPanel = Frame(self.frame)
@@ -194,25 +198,20 @@ class MainGUI:
             self.annotation_file.close()
 
     def mouse_click(self, event):
-        if self.STATE['click'] == 0:
-            self.STATE['x'], self.STATE['y'] = event.x, event.y
-            self.STATE['click'] = 1
-        else:
-            self.STATE['click'] = 0
-            x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
-            y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
-            self.bboxList.append((x1, y1, x2, y2))
-            self.bboxIdList.append(self.bboxId)
-            self.bboxId = None
-            labelidx = self.labelListBox.curselection()
-            label = self.labelListBox.get(labelidx)
-            self.objectLabelList.append(str(label))
-            self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (x1, y1, x2, y2) + ': ' + str(label))
-            self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
-        # self.STATE['click'] = 1 - self.STATE['click']
+        self.STATE['x'], self.STATE['y'] = event.x, event.y
+
+    def mouse_drag(self, event):
+        self.mouse_move(event)
+        if self.bboxId:
+            self.canvas.delete(self.bboxId)
+        self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
+                                                   event.x, event.y,
+                                                   width=2,
+                                                   outline=COLORS[len(self.bboxList) % len(COLORS)])
 
     def mouse_move(self, event):
         self.disp.config(text='x: %d, y: %d' % (event.x, event.y))
+        self.zoom_view(event)
         if self.tkimg:
             if self.hl:
                 self.canvas.delete(self.hl)
@@ -220,13 +219,35 @@ class MainGUI:
             if self.vl:
                 self.canvas.delete(self.vl)
             self.vl = self.canvas.create_line(event.x, 0, event.x, self.tkimg.height(), width=2)
-        if self.STATE['click'] == 1:
-            if self.bboxId:
-                self.canvas.delete(self.bboxId)
-            self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
-                                                       event.x, event.y,
-                                                       width=2,
-                                                       outline=COLORS[len(self.bboxList) % len(COLORS)])
+
+    def mouse_release(self, event):
+        x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
+        y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
+        self.bboxList.append((x1, y1, x2, y2))
+        self.bboxIdList.append(self.bboxId)
+        self.bboxId = None
+        labelidx = self.labelListBox.curselection()
+        label = self.labelListBox.get(labelidx)
+        self.objectLabelList.append(str(label))
+        self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (x1, y1, x2, y2) + ': ' + str(label))
+        self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
+
+    def zoom_view(self, event):
+        try:
+            if self.zoomImgId:
+                self.zoomcanvas.delete(self.zoomImgId)
+            self.zoomImg = self.img.copy()
+            draw = ImageDraw.Draw(self.zoomImg)
+            draw.point((event.x, event.y), fill=(0,0,0))
+            self.zoomImgCrop = self.zoomImg.crop(((event.x-25), (event.y-25), (event.x+25), (event.y+25)))
+            self.zoomImgCrop = self.zoomImgCrop.resize((150, 150))
+            self.tkZoomImg = ImageTk.PhotoImage(self.zoomImgCrop)
+            self.zoomImgId = self.zoomcanvas.create_image(0, 0, image=self.tkZoomImg, anchor=NW)
+        except:
+            pass
+
+    def update_bbox(self, event):
+        pass
 
     def cancel_bbox(self, event):
         if self.STATE['click'] == 1:
@@ -276,10 +297,8 @@ class MainGUI:
     def automate(self):
         opencvImage = cv2.cvtColor(np.array(self.img), cv2.COLOR_RGB2BGR)
         image = preprocess_image(opencvImage)
-        _, _, boxes, nms_classification = model.predict_on_batch(np.expand_dims(image, axis=0))
-        predicted_labels = np.argmax(nms_classification[0, :, :], axis=1)
-        scores = nms_classification[0, np.arange(nms_classification.shape[1]), predicted_labels]
-        for idx, (label, score) in enumerate(zip(predicted_labels, scores)):
+        boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        for idx, (box, label, score) in enumerate(zip(boxes[0], labels[0], scores[0])):
             curr_label_list = self.labelListBox.get(0, END)
             curr_label_list = list(curr_label_list)
             if score < 0.5:
@@ -288,7 +307,7 @@ class MainGUI:
             if labels_to_names[label] not in curr_label_list:
                 continue
 
-            b = boxes[0, idx, :].astype(int)
+            b = box.astype(int)
 
             self.bboxId = self.canvas.create_rectangle(b[0], b[1],
                                                        b[2], b[3],
