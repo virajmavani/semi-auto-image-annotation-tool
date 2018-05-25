@@ -1,5 +1,7 @@
 # Anno-Mage: A Semi Automatic Image Annotation Tool
 
+![alt text](https://raw.githubusercontent.com/virajmavani/semi-auto-image-annotation-tool/master/demo.gif)
+
 Semi Automatic Image Annotation Toolbox with RetinaNet as the suggesting algorithm. The toolbox suggests 80 class objects from the MS COCO dataset using a pretrained RetinaNet model.
 
 ## Installation
