@@ -17,9 +17,8 @@ import cv2
 import os
 import numpy as np
 import tensorflow as tf
+import config 
 
-
-COLORS = ['red', 'blue', 'yellow', 'pink', 'cyan', 'green', 'black']
 
 
 def get_session():
@@ -33,21 +32,6 @@ model_path = os.path.join('.', 'snapshots', 'resnet50_coco_best_v2.1.0.h5')
 
 model = models.load_model(model_path, backbone_name='resnet50')
 # print(model.summary())
-
-# load label to names mapping for visualization purposes
-labels_to_names = {0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus', 6: 'train',
-                   7: 'truck', 8: 'boat', 9: 'traffic light', 10: 'fire hydrant', 11: 'stop sign', 12: 'parking meter',
-                   13: 'bench', 14: 'bird', 15: 'cat', 16: 'dog', 17: 'horse', 18: 'sheep', 19: 'cow', 20: 'elephant',
-                   21: 'bear', 22: 'zebra', 23: 'giraffe', 24: 'backpack', 25: 'umbrella', 26: 'handbag', 27: 'tie',
-                   28: 'suitcase', 29: 'frisbee', 30: 'skis', 31: 'snowboard', 32: 'sports ball', 33: 'kite',
-                   34: 'baseball bat', 35: 'baseball glove', 36: 'skateboard', 37: 'surfboard', 38: 'tennis racket',
-                   39: 'bottle', 40: 'wine glass', 41: 'cup', 42: 'fork', 43: 'knife', 44: 'spoon', 45: 'bowl',
-                   46: 'banana', 47: 'apple', 48: 'sandwich', 49: 'orange', 50: 'broccoli', 51: 'carrot', 52: 'hot dog',
-                   53: 'pizza', 54: 'donut', 55: 'cake', 56: 'chair', 57: 'couch', 58: 'potted plant', 59: 'bed',
-                   60: 'dining table', 61: 'toilet', 62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote', 66: 'keyboard',
-                   67: 'cell phone', 68: 'microwave', 69: 'oven', 70: 'toaster', 71: 'sink', 72: 'refrigerator',
-                   73: 'book', 74: 'clock', 75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier',
-                   79: 'toothbrush'}
 
 
 class MainGUI:
@@ -142,7 +126,7 @@ class MainGUI:
         self.labelListBox = Listbox(self.listPanel)
         self.labelListBox.pack(fill=X, side=TOP)
 
-        self.cocoLabels = labels_to_names.values()
+        self.cocoLabels = config.labels_to_names.values()
         self.cocoIntVars = []
 
         for idxcoco, label_coco in enumerate(self.cocoLabels):
@@ -171,12 +155,12 @@ class MainGUI:
             baseW = 500
             wpercent = (baseW/float(w))
             hsize = int((float(h) * float(wpercent)))
-            self.img = self.img.resize((baseW, hsize), Image.ANTIALIAS)
+            self.img = self.img.resize((baseW, hsize), Image.BICUBIC)
         else:
             baseH = 500
             wpercent = (baseH/float(h))
             wsize = int((float(w) * float(wpercent)))
-            self.img = self.img.resize((wsize, baseH), Image.ANTIALIAS)
+            self.img = self.img.resize((wsize, baseH), Image.BICUBIC )
 
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.canvas.create_image(0, 0, image=self.tkimg, anchor=NW)
@@ -219,7 +203,7 @@ class MainGUI:
         self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
                                                    event.x, event.y,
                                                    width=2,
-                                                   outline=COLORS[len(self.bboxList) % len(COLORS)])
+                                                   outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
 
     def mouse_move(self, event):
         self.disp.config(text='x: %d, y: %d' % (event.x, event.y))
@@ -242,7 +226,7 @@ class MainGUI:
         label = self.labelListBox.get(labelidx)
         self.objectLabelList.append(str(label))
         self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (x1, y1, x2, y2) + ': ' + str(label))
-        self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
+        self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
 
     def zoom_view(self, event):
         try:
@@ -316,7 +300,7 @@ class MainGUI:
             if score < 0.5:
                 continue
 
-            if labels_to_names[label] not in curr_label_list:
+            if config.labels_to_names[label] not in curr_label_list:
                 continue
 
             b = box.astype(int)
@@ -324,14 +308,14 @@ class MainGUI:
             self.bboxId = self.canvas.create_rectangle(b[0], b[1],
                                                        b[2], b[3],
                                                        width=2,
-                                                       outline=COLORS[len(self.bboxList) % len(COLORS)])
+                                                       outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
             self.bboxList.append((b[0], b[1], b[2], b[3]))
             self.bboxIdList.append(self.bboxId)
             self.bboxId = None
-            self.objectLabelList.append(str(labels_to_names[label]))
+            self.objectLabelList.append(str(config.labels_to_names[label]))
             self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (b[0], b[1], b[2], b[3]) + ': ' +
-                                      str(labels_to_names[label]))
-            self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
+                                      str(config.labels_to_names[label]))
+            self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
 
 
 if __name__ == '__main__':
