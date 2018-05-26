@@ -37,7 +37,7 @@ For, Python >= 3.5
 python main.py
 ```
 
-### Acknoledgments
+### Acknowledgments
 
 1) [Meditab Software Inc.](https://www.meditab.com/)
 
