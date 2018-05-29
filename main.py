@@ -373,6 +373,14 @@ class MainGUI:
                                                        width=2,
                                                        outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
             self.bboxList.append((b[0], b[1], b[2], b[3]))
+            o1 = self.canvas.create_oval(b[0] - 3, b[1] - 3, b[0] + 3, b[1] + 3, fill="red")
+            o2 = self.canvas.create_oval(b[2] - 3, b[1] - 3, b[2] + 3, b[1] + 3, fill="red")
+            o3 = self.canvas.create_oval(b[2] - 3, b[3] - 3, b[2] + 3, b[3] + 3, fill="red")
+            o4 = self.canvas.create_oval(b[0] - 3, b[3] - 3, b[0] + 3, b[3] + 3, fill="red")
+            self.bboxPointList.append(o1)
+            self.bboxPointList.append(o2)
+            self.bboxPointList.append(o3)
+            self.bboxPointList.append(o4)
             self.bboxIdList.append(self.bboxId)
             self.bboxId = None
             self.objectLabelList.append(str(config.labels_to_names[label]))
