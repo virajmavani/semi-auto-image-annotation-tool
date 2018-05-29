@@ -1,7 +1,7 @@
 import os
 
 from tkinter import *
-from tkinter import filedialog
+from tkinter import ttk, filedialog
 from PIL import Image, ImageTk, ImageDraw
 import random
 
@@ -17,8 +17,8 @@ import cv2
 import os
 import numpy as np
 import tensorflow as tf
-import config 
-
+import config
+import math
 
 
 def get_session():
@@ -26,11 +26,14 @@ def get_session():
     config.gpu_options.allow_growth = True
     return tf.Session(config=config)
 
+
 keras.backend.tensorflow_backend.set_session(get_session())
 
 model_path = os.path.join('.', 'snapshots', 'resnet50_coco_best_v2.1.0.h5')
 
 model = models.load_model(model_path, backbone_name='resnet50')
+
+
 # print(model.summary())
 
 
@@ -50,12 +53,16 @@ class MainGUI:
         self.cur = 0
         self.bboxIdList = []
         self.bboxList = []
+        self.bboxPointList = []
         self.bboxId = None
+        self.editbboxId = None
         self.zoomImgId = None
         self.hl = None
         self.vl = None
+        self.editPointId = None
         self.filename = None
         self.objectLabelList = []
+        self.EDIT = False
 
         # initialize mouse state
         self.STATE = {'x': 0, 'y': 0}
@@ -136,7 +143,7 @@ class MainGUI:
 
     def open_image(self):
         self.filename = filedialog.askopenfilename(title="Select Image", filetypes=(("jpeg files", "*.jpg"),
-                                                                               ("all files", "*.*")))
+                                                                                    ("all files", "*.*")))
         self.load_image(self.filename)
 
     def open_image_dir(self):
@@ -153,14 +160,14 @@ class MainGUI:
         w, h = self.img.size
         if w >= h:
             baseW = 500
-            wpercent = (baseW/float(w))
+            wpercent = (baseW / float(w))
             hsize = int((float(h) * float(wpercent)))
             self.img = self.img.resize((baseW, hsize), Image.BICUBIC)
         else:
             baseH = 500
-            wpercent = (baseH/float(h))
+            wpercent = (baseH / float(h))
             wsize = int((float(w) * float(wpercent)))
-            self.img = self.img.resize((wsize, baseH), Image.BICUBIC )
+            self.img = self.img.resize((wsize, baseH), Image.BICUBIC)
 
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.canvas.create_image(0, 0, image=self.tkimg, anchor=NW)
@@ -183,18 +190,44 @@ class MainGUI:
             self.annotation_file = open('annotations/' + self.anno_filename, 'a')
             for idx, item in enumerate(self.bboxList):
                 self.annotation_file.write(self.imageDir + '/' + self.imageList[self.cur] + ',' +
-                                      ','.join(map(str, self.bboxList[idx])) + ',' + str(self.objectLabelList[idx])
-                                      + '\n')
+                                           ','.join(map(str, self.bboxList[idx])) + ',' + str(self.objectLabelList[idx])
+                                           + '\n')
             self.annotation_file.close()
         else:
             self.annotation_file = open('annotations/' + self.anno_filename, 'a')
             for idx, item in enumerate(self.bboxList):
                 self.annotation_file.write(self.filename + ',' + ','.join(map(str, self.bboxList[idx])) + ','
-                                      + str(self.objectLabelList[idx]) + '\n')
+                                           + str(self.objectLabelList[idx]) + '\n')
             self.annotation_file.close()
 
     def mouse_click(self, event):
-        self.STATE['x'], self.STATE['y'] = event.x, event.y
+        # Check if Updating BBox
+        if self.canvas.find_enclosed(event.x - 5, event.y - 5, event.x + 5, event.y + 5):
+            self.EDIT = True
+            self.editPointId = int(self.canvas.find_enclosed(event.x - 5, event.y - 5, event.x + 5, event.y + 5)[0])
+        else:
+            self.EDIT = False
+
+        # Set the initial point
+        if self.EDIT:
+            idx = self.bboxPointList.index(self.editPointId)
+            self.editbboxId = self.bboxIdList[math.floor(idx/4.0)]
+            self.bboxId = self.editbboxId
+            if idx%2 == 0:
+                if idx%4 == 0:
+                    oppIdx = idx + 2
+                else:
+                    oppIdx = idx - 2
+            else:
+                if (idx-1)%4 == 0:
+                    oppIdx = idx + 2
+                else:
+                    oppIdx = idx - 2
+            a, b, c, d = self.canvas.coords(self.bboxPointList[oppIdx])
+            self.STATE['x'], self.STATE['y'] = int((a+c)/2), int((b+d)/2)
+        else:
+            self.STATE['x'], self.STATE['y'] = event.x, event.y
+
 
     def mouse_drag(self, event):
         self.mouse_move(event)
@@ -209,24 +242,39 @@ class MainGUI:
         self.disp.config(text='x: %d, y: %d' % (event.x, event.y))
         self.zoom_view(event)
         if self.tkimg:
+            # Horizontal and Vertical Line for precision
             if self.hl:
                 self.canvas.delete(self.hl)
             self.hl = self.canvas.create_line(0, event.y, self.tkimg.width(), event.y, width=2)
             if self.vl:
                 self.canvas.delete(self.vl)
             self.vl = self.canvas.create_line(event.x, 0, event.x, self.tkimg.height(), width=2)
+            # elif (event.x, event.y) in self.bboxBRPointList:
+            #     pass
 
     def mouse_release(self, event):
+        if self.EDIT:
+            self.update_bbox()
+            self.EDIT = False
         x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
         y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
         self.bboxList.append((x1, y1, x2, y2))
+        o1 = self.canvas.create_oval(x1 - 3, y1 - 3, x1 + 3, y1 + 3, fill="red")
+        o2 = self.canvas.create_oval(x2 - 3, y1 - 3, x2 + 3, y1 + 3, fill="red")
+        o3 = self.canvas.create_oval(x2 - 3, y2 - 3, x2 + 3, y2 + 3, fill="red")
+        o4 = self.canvas.create_oval(x1 - 3, y2 - 3, x1 + 3, y2 + 3, fill="red")
+        self.bboxPointList.append(o1)
+        self.bboxPointList.append(o2)
+        self.bboxPointList.append(o3)
+        self.bboxPointList.append(o4)
         self.bboxIdList.append(self.bboxId)
         self.bboxId = None
         labelidx = self.labelListBox.curselection()
         label = self.labelListBox.get(labelidx)
         self.objectLabelList.append(str(label))
         self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (x1, y1, x2, y2) + ': ' + str(label))
-        self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
+        self.objectListBox.itemconfig(len(self.bboxIdList) - 1,
+                                      fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
 
     def zoom_view(self, event):
         try:
@@ -234,16 +282,28 @@ class MainGUI:
                 self.zoomcanvas.delete(self.zoomImgId)
             self.zoomImg = self.img.copy()
             draw = ImageDraw.Draw(self.zoomImg)
-            draw.point((event.x, event.y), fill=(0,0,0))
-            self.zoomImgCrop = self.zoomImg.crop(((event.x-25), (event.y-25), (event.x+25), (event.y+25)))
+            draw.point((event.x, event.y), fill=(0, 0, 0))
+            self.zoomImgCrop = self.zoomImg.crop(((event.x - 25), (event.y - 25), (event.x + 25), (event.y + 25)))
             self.zoomImgCrop = self.zoomImgCrop.resize((150, 150))
             self.tkZoomImg = ImageTk.PhotoImage(self.zoomImgCrop)
             self.zoomImgId = self.zoomcanvas.create_image(0, 0, image=self.tkZoomImg, anchor=NW)
         except:
             pass
 
-    def update_bbox(self, event):
-        pass
+    def update_bbox(self):
+        idx = self.bboxIdList.index(self.editbboxId)
+        self.bboxIdList.pop(idx)
+        self.bboxList.pop(idx)
+        self.objectListBox.delete(idx)
+        idx = idx*4
+        self.canvas.delete(self.bboxPointList[idx])
+        self.canvas.delete(self.bboxPointList[idx+1])
+        self.canvas.delete(self.bboxPointList[idx+2])
+        self.canvas.delete(self.bboxPointList[idx+3])
+        self.bboxPointList.pop(idx)
+        self.bboxPointList.pop(idx)
+        self.bboxPointList.pop(idx)
+        self.bboxPointList.pop(idx)
 
     def cancel_bbox(self, event):
         if self.STATE['click'] == 1:
@@ -265,10 +325,13 @@ class MainGUI:
     def clear_bbox(self):
         for idx in range(len(self.bboxIdList)):
             self.canvas.delete(self.bboxIdList[idx])
+        for idx in range(len(self.bboxPointList)):
+            self.canvas.delete(self.bboxPointList[idx])
         self.objectListBox.delete(0, len(self.bboxList))
         self.bboxIdList = []
         self.bboxList = []
         self.objectLabelList = []
+        self.bboxPointList = []
 
     def add_label(self):
         if self.textBox.get() is not '':
@@ -315,7 +378,8 @@ class MainGUI:
             self.objectLabelList.append(str(config.labels_to_names[label]))
             self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (b[0], b[1], b[2], b[3]) + ': ' +
                                       str(config.labels_to_names[label]))
-            self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
+            self.objectListBox.itemconfig(len(self.bboxIdList) - 1,
+                                          fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
 
 
 if __name__ == '__main__':
