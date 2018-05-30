@@ -32,6 +32,8 @@ For, Python >= 3.5
 
 2) When annotating manually, select the object class from the List and while keep it selected, select the BBox.
 
+3) The final annotations can be found in the file `annotations.csv` in ./annotations/
+
 ### Usage
 ```
 python main.py

@@ -65,7 +65,12 @@ class MainGUI:
         self.bboxIdList = []
         self.bboxList = []
         self.bboxPointList = []
+        self.o1 = None
+        self.o2 = None
+        self.o3 = None
+        self.o4 = None
         self.bboxId = None
+        self.currLabel = None
         self.editbboxId = None
         self.zoomImgId = None
         self.hl = None
@@ -224,17 +229,20 @@ class MainGUI:
             idx = self.bboxPointList.index(self.editPointId)
             self.editbboxId = self.bboxIdList[math.floor(idx/4.0)]
             self.bboxId = self.editbboxId
-            if idx%2 == 0:
-                if idx%4 == 0:
-                    oppIdx = idx + 2
-                else:
-                    oppIdx = idx - 2
-            else:
-                if (idx-1)%4 == 0:
-                    oppIdx = idx + 2
-                else:
-                    oppIdx = idx - 2
-            a, b, c, d = self.canvas.coords(self.bboxPointList[oppIdx])
+            pidx = self.bboxIdList.index(self.editbboxId)
+            pidx = pidx * 4
+            self.o1 = self.bboxPointList[pidx]
+            self.o2 = self.bboxPointList[pidx + 1]
+            self.o3 = self.bboxPointList[pidx + 2]
+            self.o4 = self.bboxPointList[pidx + 3]
+            if self.editPointId == self.o1:
+                a, b, c, d = self.canvas.coords(self.o3)
+            elif self.editPointId == self.o2:
+                a, b, c, d = self.canvas.coords(self.o4)
+            elif self.editPointId == self.o3:
+                a, b, c, d = self.canvas.coords(self.o1)
+            elif self.editPointId == self.o4:
+                a, b, c, d = self.canvas.coords(self.o2)
             self.STATE['x'], self.STATE['y'] = int((a+c)/2), int((b+d)/2)
         else:
             self.STATE['x'], self.STATE['y'] = event.x, event.y
@@ -244,7 +252,17 @@ class MainGUI:
         self.mouse_move(event)
         if self.bboxId:
             self.canvas.delete(self.bboxId)
-        self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
+            self.canvas.delete(self.o1)
+            self.canvas.delete(self.o2)
+            self.canvas.delete(self.o3)
+            self.canvas.delete(self.o4)
+        if self.EDIT:
+            self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
+                                                       event.x, event.y,
+                                                       width=2,
+                                                       outline=config.COLORS[(len(self.bboxList) - 1) % len(config.COLORS)])
+        else:
+            self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
                                                    event.x, event.y,
                                                    width=2,
                                                    outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
@@ -264,6 +282,11 @@ class MainGUI:
             #     pass
 
     def mouse_release(self, event):
+        try:
+            labelidx = self.labelListBox.curselection()
+            self.currLabel = self.labelListBox.get(labelidx)
+        except:
+            pass
         if self.EDIT:
             self.update_bbox()
             self.EDIT = False
@@ -280,12 +303,11 @@ class MainGUI:
         self.bboxPointList.append(o4)
         self.bboxIdList.append(self.bboxId)
         self.bboxId = None
-        labelidx = self.labelListBox.curselection()
-        label = self.labelListBox.get(labelidx)
-        self.objectLabelList.append(str(label))
-        self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (x1, y1, x2, y2) + ': ' + str(label))
+        self.objectLabelList.append(str(self.currLabel))
+        self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (x1, y1, x2, y2) + ': ' + str(self.currLabel))
         self.objectListBox.itemconfig(len(self.bboxIdList) - 1,
                                       fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
+        self.currLabel = None
 
     def zoom_view(self, event):
         try:
@@ -306,6 +328,8 @@ class MainGUI:
         self.bboxIdList.pop(idx)
         self.bboxList.pop(idx)
         self.objectListBox.delete(idx)
+        self.currLabel = self.objectLabelList[idx]
+        self.objectLabelList.pop(idx)
         idx = idx*4
         self.canvas.delete(self.bboxPointList[idx])
         self.canvas.delete(self.bboxPointList[idx+1])
@@ -329,8 +353,17 @@ class MainGUI:
             return
         idx = int(sel[0])
         self.canvas.delete(self.bboxIdList[idx])
+        self.canvas.delete(self.bboxPointList[idx * 4])
+        self.canvas.delete(self.bboxPointList[(idx * 4) + 1])
+        self.canvas.delete(self.bboxPointList[(idx * 4) + 2])
+        self.canvas.delete(self.bboxPointList[(idx * 4) + 3])
+        self.bboxPointList.pop(idx * 4)
+        self.bboxPointList.pop(idx * 4)
+        self.bboxPointList.pop(idx * 4)
+        self.bboxPointList.pop(idx * 4)
         self.bboxIdList.pop(idx)
         self.bboxList.pop(idx)
+        self.objectLabelList.pop(idx)
         self.objectListBox.delete(idx)
 
     def clear_bbox(self):
