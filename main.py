@@ -115,7 +115,7 @@ class MainGUI:
         self.mb["menu"] = self.mb.menu
         self.addCocoBtn = Button(self.ctrlPanel, text="+", command=self.add_labels_coco)
         self.addCocoBtn.pack(fill=X, side=TOP)
-        self.zoomPanelLabel = Label(self.ctrlPanel, text="Zoom Panel")
+        self.zoomPanelLabel = Label(self.ctrlPanel, text="Precision View Panel")
         self.zoomPanelLabel.pack(fill=X, side=TOP)
         self.zoomcanvas = Canvas(self.ctrlPanel, width=150, height=150)
         self.zoomcanvas.pack(fill=X, side=TOP, anchor='center')
