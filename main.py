@@ -314,12 +314,12 @@ class MainGUI:
             if self.zoomImgId:
                 self.zoomcanvas.delete(self.zoomImgId)
             self.zoomImg = self.img.copy()
-            draw = ImageDraw.Draw(self.zoomImg)
-            draw.point((event.x, event.y), fill=(0, 0, 0))
             self.zoomImgCrop = self.zoomImg.crop(((event.x - 25), (event.y - 25), (event.x + 25), (event.y + 25)))
             self.zoomImgCrop = self.zoomImgCrop.resize((150, 150))
             self.tkZoomImg = ImageTk.PhotoImage(self.zoomImgCrop)
             self.zoomImgId = self.zoomcanvas.create_image(0, 0, image=self.tkZoomImg, anchor=NW)
+            hl = self.zoomcanvas.create_line(0, 75, 150, 75, width=2)
+            vl = self.zoomcanvas.create_line(75, 0, 75, 150, width=2)
         except:
             pass
 
