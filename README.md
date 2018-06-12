@@ -35,9 +35,19 @@ For, Python >= 3.5
 3) The final annotations can be found in the file `annotations.csv` in ./annotations/
 
 ### Usage
-```
+`
 python main.py
-```
+`
+
+Tested on:
+
+`
+1. Windows
+`
+
+`
+2. Linux
+`
 
 ### Acknowledgments
 
