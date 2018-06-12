@@ -40,8 +40,14 @@ python main.py
 `
 
 Tested on:
-`1. Windows`
-`2. Linux`
+
+`
+1. Windows
+`
+
+`
+2. Linux
+`
 
 ### Acknowledgments
 
