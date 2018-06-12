@@ -128,8 +128,6 @@ class MainGUI:
         self.canvas.bind("<B1-Motion>", self.mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.mouse_release)
         self.parent.bind("Escape", self.cancel_bbox)
-        self.parent.bind("<Key-Left>", self.open_previous)
-        self.parent.bind("<Key-Right>", self.open_next)
 
         # Labels and Bounding Box Lists Panel
         self.listPanel = Frame(self.frame)
@@ -168,7 +166,7 @@ class MainGUI:
         self.imageDir = filedialog.askdirectory(title="Select Dataset Directory")
         self.imageList = os.listdir(self.imageDir)
         self.imageList = sorted(self.imageList)
-        self.filename = None
+        # print(self.imageList)
         self.load_image(self.imageDir + '/' + self.imageList[self.cur])
 
     def load_image(self, file):
