@@ -8,23 +8,16 @@ Copyright {2018} {Viraj Mavani}
        http://www.apache.org/licenses/LICENSE-2.0
 """
 
-
-import os
-
 from tkinter import *
-from tkinter import ttk, filedialog
-from PIL import Image, ImageTk, ImageDraw
-import random
+from tkinter import filedialog
+from PIL import Image, ImageTk
 
 import keras
 
 from keras_retinanet import models
-from keras_retinanet.utils.image import read_image_bgr, preprocess_image, resize_image
-from keras_retinanet.utils.visualization import draw_box, draw_caption
-from keras_retinanet.utils.colors import label_color
+from keras_retinanet.utils.image import preprocess_image
 
 # import miscellaneous modules
-import cv2
 import os
 import numpy as np
 import tensorflow as tf
@@ -45,9 +38,6 @@ model_path = os.path.join('.', 'snapshots', 'resnet50_coco_best_v2.1.0.h5')
 model = models.load_model(model_path, backbone_name='resnet50')
 
 
-# print(model.summary())
-
-
 class MainGUI:
     def __init__(self, master):
         self.parent = master
@@ -61,6 +51,8 @@ class MainGUI:
         self.tkimg = None
         self.imageDir = ''
         self.imageList = []
+        self.imageTotal = 0
+        self.imageCur = 0
         self.cur = 0
         self.bboxIdList = []
         self.bboxList = []
@@ -73,6 +65,9 @@ class MainGUI:
         self.currLabel = None
         self.editbboxId = None
         self.zoomImgId = None
+        self.zoomImg = None
+        self.zoomImgCrop = None
+        self.tkZoomImg = None
         self.hl = None
         self.vl = None
         self.editPointId = None
@@ -127,6 +122,8 @@ class MainGUI:
         self.canvas.bind("<Motion>", self.mouse_move, "+")
         self.canvas.bind("<B1-Motion>", self.mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.mouse_release)
+        self.parent.bind("<Key-Left>", self.open_previous)
+        self.parent.bind("<Key-Right>", self.open_next)
         self.parent.bind("Escape", self.cancel_bbox)
 
         # Labels and Bounding Box Lists Panel
@@ -157,6 +154,14 @@ class MainGUI:
             self.mb.menu.add_checkbutton(label=label_coco, variable=self.cocoIntVars[idxcoco])
         # print(self.cocoIntVars)
 
+        # STATUS BAR
+        self.statusBar = Frame(self.frame, width=500)
+        self.statusBar.grid(row=1, column=1, sticky=W + N)
+        self.processingLabel = Label(self.statusBar, text="                      ")
+        self.processingLabel.pack(side="left", fill=X)
+        self.imageIdxLabel = Label(self.statusBar, text="                      ")
+        self.imageIdxLabel.pack(side="right", fill=X)
+
     def open_image(self):
         self.filename = filedialog.askopenfilename(title="Select Image", filetypes=(("jpeg files", "*.jpg"),
                                                                                     ("all files", "*.*")))
@@ -166,12 +171,14 @@ class MainGUI:
         self.imageDir = filedialog.askdirectory(title="Select Dataset Directory")
         self.imageList = os.listdir(self.imageDir)
         self.imageList = sorted(self.imageList)
-        # print(self.imageList)
+        self.imageTotal = len(self.imageList)
+        self.filename = None
         self.load_image(self.imageDir + '/' + self.imageList[self.cur])
 
     def load_image(self, file):
         self.img = Image.open(file)
-
+        self.imageCur = self.cur + 1
+        self.imageIdxLabel.config(text='  ||   Image Number: %d / %d' % (self.imageCur, self.imageTotal))
         # Resize to Pascal VOC format
         w, h = self.img.size
         if w >= h:
@@ -194,12 +201,16 @@ class MainGUI:
         if self.cur < len(self.imageList):
             self.cur += 1
             self.load_image(self.imageDir + '/' + self.imageList[self.cur])
+        self.processingLabel.config(text="                      ")
+        self.processingLabel.update_idletasks()
 
     def open_previous(self, event=None):
         self.save()
         if self.cur > 0:
             self.cur -= 1
             self.load_image(self.imageDir + '/' + self.imageList[self.cur])
+        self.processingLabel.config(text="                      ")
+        self.processingLabel.update_idletasks()
 
     def save(self):
         if self.filename is None:
@@ -247,7 +258,6 @@ class MainGUI:
         else:
             self.STATE['x'], self.STATE['y'] = event.x, event.y
 
-
     def mouse_drag(self, event):
         self.mouse_move(event)
         if self.bboxId:
@@ -263,9 +273,9 @@ class MainGUI:
                                                        outline=config.COLORS[(len(self.bboxList) - 1) % len(config.COLORS)])
         else:
             self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
-                                                   event.x, event.y,
-                                                   width=2,
-                                                   outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
+                                                       event.x, event.y,
+                                                       width=2,
+                                                       outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
 
     def mouse_move(self, event):
         self.disp.config(text='x: %d, y: %d' % (event.x, event.y))
@@ -398,7 +408,12 @@ class MainGUI:
                     self.labelListBox.insert(END, str(list_label_coco))
 
     def automate(self):
-        opencvImage = cv2.cvtColor(np.array(self.img), cv2.COLOR_RGB2BGR)
+        self.processingLabel.config(text="Processing     ")
+        self.processingLabel.update_idletasks()
+        open_cv_image = np.array(self.img)
+        # Convert RGB to BGR
+        opencvImage= open_cv_image[:, :, ::-1].copy()
+        # opencvImage = cv2.cvtColor(np.array(self.img), cv2.COLOR_RGB2BGR)
         image = preprocess_image(opencvImage)
         boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
         for idx, (box, label, score) in enumerate(zip(boxes[0], labels[0], scores[0])):
@@ -432,6 +447,7 @@ class MainGUI:
                                       str(config.labels_to_names[label]))
             self.objectListBox.itemconfig(len(self.bboxIdList) - 1,
                                           fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
+        self.processingLabel.config(text="Done              ")
 
 
 if __name__ == '__main__':
