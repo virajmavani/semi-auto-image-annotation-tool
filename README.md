@@ -45,6 +45,8 @@ Tested on:
 
 2. Linux 16.04
 
+3. macOS High Sierra
+
 ### Acknowledgments
 
 1) [Meditab Software Inc.](https://www.meditab.com/)
