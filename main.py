@@ -452,7 +452,7 @@ class MainGUI:
 
 if __name__ == '__main__':
     root = Tk()
-    imgicon = PhotoImage(file='icon.png')
+    imgicon = PhotoImage(file='icon.gif')
     root.tk.call('wm', 'iconphoto', root._w, imgicon)
     tool = MainGUI(root)
     root.mainloop()
