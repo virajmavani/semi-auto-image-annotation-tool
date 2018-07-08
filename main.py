@@ -50,6 +50,7 @@ class MainGUI:
         self.img = None
         self.tkimg = None
         self.imageDir = ''
+        self.imageDirPathBuffer = ''
         self.imageList = []
         self.imageTotal = 0
         self.imageCur = 0
@@ -72,6 +73,7 @@ class MainGUI:
         self.vl = None
         self.editPointId = None
         self.filename = None
+        self.filenameBuffer = None
         self.objectLabelList = []
         self.EDIT = False
 
@@ -165,15 +167,21 @@ class MainGUI:
     def open_image(self):
         self.filename = filedialog.askopenfilename(title="Select Image", filetypes=(("jpeg files", "*.jpg"),
                                                                                     ("all files", "*.*")))
-        self.load_image(self.filename)
+        if not self.filename:
+            return None
+        self.filenameBuffer = self.filename
+        self.load_image(self.filenameBuffer)
 
     def open_image_dir(self):
         self.imageDir = filedialog.askdirectory(title="Select Dataset Directory")
+        if not self.imageDir:
+            return None
         self.imageList = os.listdir(self.imageDir)
         self.imageList = sorted(self.imageList)
         self.imageTotal = len(self.imageList)
         self.filename = None
-        self.load_image(self.imageDir + '/' + self.imageList[self.cur])
+        self.imageDirPathBuffer = self.imageDir
+        self.load_image(self.imageDirPathBuffer + '/' + self.imageList[self.cur])
 
     def load_image(self, file):
         self.img = Image.open(file)
@@ -200,7 +208,7 @@ class MainGUI:
         self.save()
         if self.cur < len(self.imageList):
             self.cur += 1
-            self.load_image(self.imageDir + '/' + self.imageList[self.cur])
+            self.load_image(self.imageDirPathBuffer + '/' + self.imageList[self.cur])
         self.processingLabel.config(text="                      ")
         self.processingLabel.update_idletasks()
 
@@ -208,22 +216,22 @@ class MainGUI:
         self.save()
         if self.cur > 0:
             self.cur -= 1
-            self.load_image(self.imageDir + '/' + self.imageList[self.cur])
+            self.load_image(self.imageDirPathBuffer + '/' + self.imageList[self.cur])
         self.processingLabel.config(text="                      ")
         self.processingLabel.update_idletasks()
 
     def save(self):
-        if self.filename is None:
+        if self.filenameBuffer is None:
             self.annotation_file = open('annotations/' + self.anno_filename, 'a')
             for idx, item in enumerate(self.bboxList):
-                self.annotation_file.write(self.imageDir + '/' + self.imageList[self.cur] + ',' +
+                self.annotation_file.write(self.imageDirPathBuffer + '/' + self.imageList[self.cur] + ',' +
                                            ','.join(map(str, self.bboxList[idx])) + ',' + str(self.objectLabelList[idx])
                                            + '\n')
             self.annotation_file.close()
         else:
             self.annotation_file = open('annotations/' + self.anno_filename, 'a')
             for idx, item in enumerate(self.bboxList):
-                self.annotation_file.write(self.filename + ',' + ','.join(map(str, self.bboxList[idx])) + ','
+                self.annotation_file.write(self.filenameBuffer + ',' + ','.join(map(str, self.bboxList[idx])) + ','
                                            + str(self.objectLabelList[idx]) + '\n')
             self.annotation_file.close()
 
