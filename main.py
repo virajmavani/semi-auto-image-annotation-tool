@@ -65,6 +65,7 @@ class MainGUI:
         self.bboxId = None
         self.currLabel = None
         self.editbboxId = None
+        self.currBboxColor = None
         self.zoomImgId = None
         self.zoomImg = None
         self.zoomImgCrop = None
@@ -269,6 +270,7 @@ class MainGUI:
     def mouse_drag(self, event):
         self.mouse_move(event)
         if self.bboxId:
+            self.currBboxColor = self.canvas.itemcget(self.bboxId, "outline")
             self.canvas.delete(self.bboxId)
             self.canvas.delete(self.o1)
             self.canvas.delete(self.o2)
@@ -278,12 +280,13 @@ class MainGUI:
             self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
                                                        event.x, event.y,
                                                        width=2,
-                                                       outline=config.COLORS[(len(self.bboxList) - 1) % len(config.COLORS)])
+                                                       outline=self.currBboxColor)
         else:
+            self.currBboxColor = config.COLORS[len(self.bboxList) % len(config.COLORS)]
             self.bboxId = self.canvas.create_rectangle(self.STATE['x'], self.STATE['y'],
                                                        event.x, event.y,
                                                        width=2,
-                                                       outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
+                                                       outline=self.currBboxColor)
 
     def mouse_move(self, event):
         self.disp.config(text='x: %d, y: %d' % (event.x, event.y))
@@ -324,7 +327,7 @@ class MainGUI:
         self.objectLabelList.append(str(self.currLabel))
         self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (x1, y1, x2, y2) + ': ' + str(self.currLabel))
         self.objectListBox.itemconfig(len(self.bboxIdList) - 1,
-                                      fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
+                                      fg=self.currBboxColor)
         self.currLabel = None
 
     def zoom_view(self, event):
