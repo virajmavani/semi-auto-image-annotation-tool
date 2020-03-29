@@ -41,7 +41,7 @@ model = models.load_model(model_path, backbone_name='resnet50')
 class MainGUI:
     def __init__(self, master):
         self.parent = master
-        self.parent.title("Auto Label")
+        self.parent.title("Semi Automatic Image Annotation Tool")
         self.frame = Frame(self.parent)
         self.frame.pack(fill=BOTH, expand=1)
         self.parent.resizable(width=False, height=False)
