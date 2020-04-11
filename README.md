@@ -64,6 +64,10 @@ Then run:
 
 3. macOS High Sierra
 
+### Join the developers channel for contributions
+
+Slack: https://join.slack.com/t/annomage/shared_invite/zt-dh4ca9du-4VOcwUMCSNA6lmyG~tNUPg
+
 ### Acknowledgments
 
 1) [Meditab Software Inc.](https://www.meditab.com/)
