@@ -24,7 +24,9 @@ from pascal_voc_writer import Writer
 
 # make sure the file is inside semi-auto-image-annotation-tool-master
 import pathlib
-cur_path = pathlib.Path(__file__).parent.absolute()
+# cur_path = pathlib.Path(__file__).parent.absolute()
+cur_path = pathlib.Path(__file__).parent.absolute().as_posix()
+print(cur_path)
 # cur_path = r"semi-auto-image-annotation-tool-master"
 sys.path.append(cur_path)
 os.chdir(cur_path)
@@ -34,8 +36,8 @@ class MainGUI:
     def __init__(self, master):
 
         # to choose between keras or tensorflow models
-        self.kera = 1  # default
-        self.tensorf = 0
+        self.keras_ = 1  # default
+        self.tensorflow_ = 0
         self.models_dir = ''  # gets updated as per user choice
         self.model_path = ''
         self.parent = master
@@ -175,7 +177,7 @@ class MainGUI:
 
         self.labelListBox = Listbox(self.listPanel)
         self.labelListBox.pack(fill=X, side=TOP)
-        if self.kera:
+        if self.keras_:
             self.cocoLabels = config.labels_to_names.values()
         else:
             self.cocoLabels = tf_config.labels_to_names.values()
@@ -207,7 +209,7 @@ class MainGUI:
     def available_models(self):
         self.models_dir = os.path.join(cur_path, 'snapshots')
         # only for keras and tf
-        model_categ = os.listdir(self.models_dir)
+        model_categ = [dir_ for dir_ in os.listdir(self.models_dir) if os.path.isdir(os.path.join(self.models_dir, dir_))]
         # creating all model options list
         model_names = []
         for categ in model_categ:
@@ -499,12 +501,12 @@ class MainGUI:
                 self.model_path = os.path.join(self.models_dir,list_model_name)
                 # if its Tensorflow model then modify path
                 if('keras' in list_model_name):
-                    self.kera = 1
-                    self.tensorf = 0
+                    self.keras_ = 1
+                    self.tensorflow_ = 0
                 elif('tensorflow' in list_model_name):
                     self.model_path = os.path.join(self.model_path,'frozen_inference_graph.pb')
-                    self.kera = 0
-                    self.tensorf = 1
+                    self.keras_ = 0
+                    self.tensorflow_ = 1
                     # change cocoLabels corresponding to tensorflow
                     self.cocoLabels = tf_config.labels_to_names.values()
                 break
@@ -533,7 +535,7 @@ class MainGUI:
         # Convert RGB to BGR
         opencvImage = open_cv_image[:, :, ::-1].copy()
         # if tensorflow
-        if self.tensorf :
+        if self.tensorflow_ :
             detection_graph = tf.Graph()
             with detection_graph.as_default():
                 od_graph_def = tf.GraphDef()
@@ -576,7 +578,7 @@ class MainGUI:
 
             b = box
             # only if using tf models as keras and tensorflow have different coordinate order
-            if(self.tensorf):
+            if(self.tensorflow_):
                 w, h = self.img.size
                 (b[0],b[1],b[2],b[3]) = (b[1]*w, b[0]*h, b[3]*w, b[2]*h)
             b = b.astype(int)
