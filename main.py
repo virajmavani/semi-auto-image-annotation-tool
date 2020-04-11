@@ -26,8 +26,6 @@ from pascal_voc_writer import Writer
 import pathlib
 # cur_path = pathlib.Path(__file__).parent.absolute()
 cur_path = pathlib.Path(__file__).parent.absolute().as_posix()
-print(cur_path)
-# cur_path = r"semi-auto-image-annotation-tool-master"
 sys.path.append(cur_path)
 os.chdir(cur_path)
 
