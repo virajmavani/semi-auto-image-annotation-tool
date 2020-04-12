@@ -168,13 +168,14 @@ class MainGUI:
         self.addLabelBtn = Button(self.listPanel, text="+", command=self.add_label).pack(fill=X, side=TOP)
         self.delLabelBtn = Button(self.listPanel, text="-", command=self.del_label).pack(fill=X, side=TOP)
 
+        self.labelListBox = Listbox(self.listPanel)
+        self.labelListBox.pack(fill=X, side=TOP)
+
         self.addThresh = Label(self.listPanel, text="Threshold").pack(fill=X, side=TOP)
         self.textBoxTh = Entry(self.listPanel, text="Enter threshold value")
         self.textBoxTh.pack(fill=X, side=TOP)
         self.enterthresh = Button(self.listPanel, text="Set", command=self.changeThresh).pack(fill=X, side=TOP)
 
-        self.labelListBox = Listbox(self.listPanel)
-        self.labelListBox.pack(fill=X, side=TOP)
         if self.keras_:
             self.cocoLabels = config.labels_to_names.values()
         else:
