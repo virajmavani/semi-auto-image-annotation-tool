@@ -54,7 +54,8 @@ For any other dataset-
 
 First change the labels in config.py (for keras model) or in tf_config.py( for tensorflow model).
 Then run:
-```python main.py
+```
+python main.py
 ```
 
 #### Tested on:
