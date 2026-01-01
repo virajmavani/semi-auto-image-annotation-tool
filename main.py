@@ -501,7 +501,7 @@ class MainGUI:
         self.bboxPointList = []
 
     def add_label(self):
-        if self.textBox.get() is not '':
+        if self.textBox.get() != '':
             curr_label_list = self.labelListBox.get(0, END)
             curr_label_list = list(curr_label_list)
             if self.textBox.get() not in curr_label_list:
@@ -605,38 +605,6 @@ class MainGUI:
 
         self.processingLabel.config(text="Done              ")
         self.processingLabel.update_idletasks()
-
-        #     if config_labels[label] not in curr_label_list:
-        #         continue
-
-        #     b = box
-        #     # only if using tf models as keras and tensorflow have different coordinate order
-        #     if(self.tensorflow_):
-        #         w, h = self.img.size
-        #         (b[0],b[1],b[2],b[3]) = (b[1]*w, b[0]*h, b[3]*w, b[2]*h)
-        #     b = b.astype(int)
-        #     self.bboxId = self.canvas.create_rectangle(b[0], b[1],
-        #                                                b[2], b[3],
-        #                                                width=2,
-        #                                                outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
-        #     self.bboxList.append((b[0], b[1], b[2], b[3]))
-        #     o1 = self.canvas.create_oval(b[0] - 3, b[1] - 3, b[0] + 3, b[1] + 3, fill="red")
-        #     o2 = self.canvas.create_oval(b[2] - 3, b[1] - 3, b[2] + 3, b[1] + 3, fill="red")
-        #     o3 = self.canvas.create_oval(b[2] - 3, b[3] - 3, b[2] + 3, b[3] + 3, fill="red")
-        #     o4 = self.canvas.create_oval(b[0] - 3, b[3] - 3, b[0] + 3, b[3] + 3, fill="red")
-        #     self.bboxPointList.append(o1)
-        #     self.bboxPointList.append(o2)
-        #     self.bboxPointList.append(o3)
-        #     self.bboxPointList.append(o4)
-        #     self.bboxIdList.append(self.bboxId)
-        #     self.bboxId = None
-        #     self.objectLabelList.append(str(config_labels[label]))
-        #     self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (b[0], b[1], b[2], b[3]) + ': ' +
-        #                           str(config_labels[label])+' '+str(int(score*100))+'%'
-        #                               +' '+ m_name)
-        #     self.objectListBox.itemconfig(len(self.bboxIdList) - 1,
-        #                                   fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
-        # self.processingLabel.config(text="Done              ")
 
 
 if __name__ == '__main__':
