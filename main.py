@@ -9,18 +9,22 @@ Copyright {2018} {Viraj Mavani}
 from tkinter import *
 from tkinter import filedialog
 from PIL import Image, ImageTk
-import keras
-from keras_retinanet import models
-from keras_retinanet.utils.image import preprocess_image
+
+# import torchvision dependencies
+from torchvision.io.image import read_image
+from torchvision.models.detection import retinanet_resnet50_fpn_v2, RetinaNet_ResNet50_FPN_V2_Weights
 
 # import miscellaneous modules
+import sys
 import os
-import numpy as np
 import tensorflow as tf
 import config
 import tf_config
 import math
 from pascal_voc_writer import Writer
+
+# import models
+from models import ModelFactory
 
 # make sure the file is inside semi-auto-image-annotation-tool-master
 import pathlib
@@ -80,6 +84,9 @@ class MainGUI:
         self.thresh = 0.5
         self.org_h = 0
         self.org_w = 0
+        self.model = None
+        self.model_type = StringVar(value='retinanet')
+        self.available_model_types = ['retinanet']
         # initialize mouse state
         self.STATE = {'x': 0, 'y': 0}
         self.STATE_COCO = {'click': 0}
@@ -99,6 +106,11 @@ class MainGUI:
         self.openBtn.grid(columnspan=2, sticky=W + E)
         self.openDirBtn = Button(self.ctrlPanel, text='Open Dir', command=self.open_image_dir)
         self.openDirBtn.grid(columnspan=2, sticky = W + E)
+
+        self.modelLabel = Label(self.ctrlPanel, text="Model Type:")
+        self.modelLabel.grid(columnspan=2, sticky=W + E)
+        self.modelMenu = OptionMenu(self.ctrlPanel, self.model_type, *self.available_model_types, command=self.change_model)
+        self.modelMenu.grid(columnspan=2, sticky=W + E)
 
         self.nextBtn = Button(self.ctrlPanel, text='Next -->', command=self.open_next)
         self.nextBtn.grid(columnspan=2, sticky=W + E)
@@ -176,16 +188,7 @@ class MainGUI:
         self.textBoxTh.pack(fill=X, side=TOP)
         self.enterthresh = Button(self.listPanel, text="Set", command=self.changeThresh).pack(fill=X, side=TOP)
 
-        if self.keras_:
-            self.cocoLabels = config.labels_to_names.values()
-        else:
-            self.cocoLabels = tf_config.labels_to_names.values()
-
-        self.cocoIntVars = []
-        for idxcoco, label_coco in enumerate(self.cocoLabels):
-            self.cocoIntVars.append(IntVar())
-            self.mb.menu.add_checkbutton(label=label_coco, variable=self.cocoIntVars[idxcoco])
-        # print(self.cocoIntVars)
+        # Model and COCO labels will be set after model initialization
 
         self.modelIntVars = []
         for idxmodel, modelname in enumerate(self.available_models()):
@@ -199,6 +202,16 @@ class MainGUI:
         self.processingLabel.pack(side="left", fill=X)
         self.imageIdxLabel = Label(self.statusBar, text="                      ")
         self.imageIdxLabel.pack(side="right", fill=X)
+
+        # Initialize model
+        self.change_model('retinanet')
+
+        # Set up COCO labels menu
+        self.cocoLabels = self.model.get_labels()
+        self.cocoIntVars = []
+        for idxcoco, label_coco in enumerate(self.cocoLabels):
+            self.cocoIntVars.append(IntVar())
+            self.mb.menu.add_checkbutton(label=label_coco, variable=self.cocoIntVars[idxcoco])
 
     def get_session(self):
         config = tf.ConfigProto()
@@ -220,6 +233,12 @@ class MainGUI:
     def changeThresh(self):
         if(float(self.textBoxTh.get()) >0 and float(self.textBoxTh.get()) <1):
             self.thresh = float(self.textBoxTh.get())
+            print("Threshold set to ",self.thresh)
+            self.change_model(self.model_type.get())  # reload model with new threshold
+
+    def change_model(self, model_type):
+        self.model = ModelFactory.create_model(model_type, threshold=self.thresh)
+        print(f"Model changed to {model_type}")
 
     def open_image(self):
         self.filename = filedialog.askopenfilename(title="Select Image", filetypes=(("jpeg files", "*.jpg"),
@@ -482,7 +501,7 @@ class MainGUI:
         self.bboxPointList = []
 
     def add_label(self):
-        if self.textBox.get() is not '':
+        if self.textBox.get() != '':
             curr_label_list = self.labelListBox.get(0, END)
             curr_label_list = list(curr_label_list)
             if self.textBox.get() not in curr_label_list:
@@ -530,79 +549,62 @@ class MainGUI:
     def automate(self):
         self.processingLabel.config(text="Processing     ")
         self.processingLabel.update_idletasks()
-        open_cv_image = np.array(self.img)
-        # Convert RGB to BGR
-        opencvImage = open_cv_image[:, :, ::-1].copy()
-        # if tensorflow
-        if self.tensorflow_ :
-            detection_graph = tf.Graph()
-            with detection_graph.as_default():
-                od_graph_def = tf.GraphDef()
-                with tf.gfile.GFile(self.model_path, 'rb') as fid:
-                    serialized_graph = fid.read()
-                    od_graph_def.ParseFromString(serialized_graph)
-                    tf.import_graph_def(od_graph_def, name='')
 
-                sess = tf.Session(graph=detection_graph)
+        if self.model is None:
+            print("No model loaded")
+            return
+        
+        img = read_image(self.imageDirPathBuffer + '/' + self.imageList[self.cur])
 
-            image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
-            detection_boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
-            detection_scores = detection_graph.get_tensor_by_name('detection_scores:0')
-            detection_classes = detection_graph.get_tensor_by_name('detection_classes:0')
-            num_detections = detection_graph.get_tensor_by_name('num_detections:0')
+        # Preprocess the image
+        preprocessed = self.model.preprocess_image(img)
 
-            image_expanded = np.expand_dims(opencvImage, axis=0)
-            (boxes, scores, labels, num) = sess.run(
-            [detection_boxes, detection_scores, detection_classes, num_detections],
-            feed_dict={image_tensor: image_expanded})
-            config_labels = tf_config.labels_to_names
-            m_name = os.path.split((os.path.split(self.model_path)[0]))[1]
+        # Run prediction
+        detections = self.model.predict(preprocessed)
 
-        else:
-            keras.backend.tensorflow_backend.set_session(self.get_session())
-            model_path = self.model_path
-            model = models.load_model(model_path, backbone_name='resnet50')
-            image = preprocess_image(opencvImage)
-            boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
-            config_labels = config.labels_to_names
-            m_name = os.path.split(self.model_path)[1]
-        for idx, (box, label, score) in enumerate(zip(boxes[0], labels[0], scores[0])):
-            curr_label_list = self.labelListBox.get(0, END)
-            curr_label_list = list(curr_label_list)
-            if score < self.thresh:
-                continue
+        # Clear previous boxes
+        self.clear_bbox()
 
-            if config_labels[label] not in curr_label_list:
-                continue
+        # Draw each detection on Tkinter canvas
+        for detection in detections:
+            label_name = detection['label']
+            if label_name not in self.labelListBox.get(0, END):
+                continue  # only show if label is selected
 
-            b = box
-            # only if using tf models as keras and tensorflow have different coordinate order
-            if(self.tensorflow_):
-                w, h = self.img.size
-                (b[0],b[1],b[2],b[3]) = (b[1]*w, b[0]*h, b[3]*w, b[2]*h)
-            b = b.astype(int)
-            self.bboxId = self.canvas.create_rectangle(b[0], b[1],
-                                                       b[2], b[3],
-                                                       width=2,
-                                                       outline=config.COLORS[len(self.bboxList) % len(config.COLORS)])
-            self.bboxList.append((b[0], b[1], b[2], b[3]))
-            o1 = self.canvas.create_oval(b[0] - 3, b[1] - 3, b[0] + 3, b[1] + 3, fill="red")
-            o2 = self.canvas.create_oval(b[2] - 3, b[1] - 3, b[2] + 3, b[1] + 3, fill="red")
-            o3 = self.canvas.create_oval(b[2] - 3, b[3] - 3, b[2] + 3, b[3] + 3, fill="red")
-            o4 = self.canvas.create_oval(b[0] - 3, b[3] - 3, b[0] + 3, b[3] + 3, fill="red")
-            self.bboxPointList.append(o1)
-            self.bboxPointList.append(o2)
-            self.bboxPointList.append(o3)
-            self.bboxPointList.append(o4)
+            # Get coordinates in original image
+            x1, y1, x2, y2 = detection['box']
+
+            # Resize coordinates to fit the display area
+            scale_x = self.tkimg.width() / self.org_w
+            scale_y = self.tkimg.height() / self.org_h
+            x1, x2 = int(x1 * scale_x), int(x2 * scale_x)
+            y1, y2 = int(y1 * scale_y), int(y2 * scale_y)
+
+            # Draw rectangle
+            color = config.COLORS[len(self.bboxList) % len(config.COLORS)]
+            self.bboxId = self.canvas.create_rectangle(x1, y1, x2, y2, width=2, outline=color)
+
+            # Add corner handles
+            o1 = self.canvas.create_oval(x1 - 3, y1 - 3, x1 + 3, y1 + 3, fill="red")
+            o2 = self.canvas.create_oval(x2 - 3, y1 - 3, x2 + 3, y1 + 3, fill="red")
+            o3 = self.canvas.create_oval(x2 - 3, y2 - 3, x2 + 3, y2 + 3, fill="red")
+            o4 = self.canvas.create_oval(x1 - 3, y2 - 3, x1 + 3, y2 + 3, fill="red")
+
+            # Store
+            self.bboxList.append((x1, y1, x2, y2))
+            self.bboxPointList.extend([o1, o2, o3, o4])
             self.bboxIdList.append(self.bboxId)
-            self.bboxId = None
-            self.objectLabelList.append(str(config_labels[label]))
-            self.objectListBox.insert(END, '(%d, %d) -> (%d, %d)' % (b[0], b[1], b[2], b[3]) + ': ' +
-                                  str(config_labels[label])+' '+str(int(score*100))+'%'
-                                      +' '+ m_name)
-            self.objectListBox.itemconfig(len(self.bboxIdList) - 1,
-                                          fg=config.COLORS[(len(self.bboxIdList) - 1) % len(config.COLORS)])
+            self.objectLabelList.append(label_name)
+
+            # Add to object list box
+            self.objectListBox.insert(
+                END,
+                f"({x1}, {y1}) -> ({x2}, {y2}): {label_name} {detection['score']:.2f}"
+            )
+            self.objectListBox.itemconfig(len(self.bboxIdList) - 1, fg=color)
+
         self.processingLabel.config(text="Done              ")
+        self.processingLabel.update_idletasks()
 
 
 if __name__ == '__main__':
