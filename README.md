@@ -1,78 +1,109 @@
 # Anno-Mage: A Semi Automatic Image Annotation Tool
 
-![alt text](https://raw.githubusercontent.com/virajmavani/semi-auto-image-annotation-tool/master/demo.gif)
+![Demo](https://raw.githubusercontent.com/virajmavani/semi-auto-image-annotation-tool/master/demo.gif)
 
-Semi Automatic Image Annotation Toolbox with tensorflow and keras object detection models.
+Semi-automatic image annotation toolbox powered by PyTorch object detection models. Available as both a **desktop app** (Tkinter) and a **web app** (FastAPI + React).
 
-## Installation
+## Interfaces
 
-1) Clone this repository.
+### Desktop App
+A Tkinter GUI that runs locally. Annotate images from a directory with keyboard navigation and a precision zoom panel.
 
-2) In the repository, execute `pip install -r requirements.txt`.
-   Note that due to inconsistencies with how `tensorflow` should be installed,
-   this package does not define a dependency on `tensorflow` as it will try to install that (which at least on Arch Linux results in an incorrect installation).
-   Please make sure `tensorflow` is installed as per your systems requirements.
-   Also, make sure Keras 2.1.3 or higher and OpenCV 3.x is installed.
+### Web App
+A browser-based interface with a modern dark/light UI, REST API, and dataset directory browsing. See [`web/README.md`](web/README.md) for full documentation.
 
-3) a) For Keras model - Download the [pretrained weights](https://github.com/fizyr/keras-retinanet/releases/download/0.3.1/resnet50_coco_best_v2.1.0.h5) and save it in /snapshots/keras.
+---
 
-   b) For tensorflow model get the desired model from [here](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md) and extract it in /sanpshots/tensorfow
-   
-   c) You can even save custom pre trained model in the respective directory.
-  
-   
+## Desktop App
 
 ### Dependencies
 
-1) Tensorflow >= 1.7.0
+- Python 3.12
+- PyTorch + Torchvision (for RetinaNet inference)
+- Pillow, pascal-voc-writer
 
-2) OpenCV = 3.x
+Custom snapshots from legacy Keras (`.h5`) or TensorFlow (`frozen_inference_graph.pb`) models can be placed in `snapshots/keras/` and `snapshots/tensorflow/` respectively and will be listed in the model menu.
 
-3) Keras >= 2.1.3
+### Installation
 
-For, Python >= 3.5
+1. Clone this repository.
 
-### Instructions
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv my_venv
+   source my_venv/bin/activate  # On Windows: my_venv\Scripts\activate
+   ```
 
-1) Select the COCO object classes for which you need suggestions from the drop-down menu and add them. Or simply click on ```Add all classes``` .
+3. Install dependencies:
+   ```bash
+   pip install torch torchvision pillow pascal-voc-writer
+   ```
 
-2) Select the desired model and click on ```Add model```.
+4. Run the app:
+   ```bash
+   python main.py
+   ```
 
-3) Click on ```detect``` button.
-
-4) When annotating manually, select the object class from the List and while keep it selected, select the BBox.
-
-5) The final annotations can be found in the file `annotations.csv` in ./annotations/ . Also a xml file will saved.
+The default model (RetinaNet ResNet50 FPN V2) downloads its weights automatically from the PyTorch model hub on first run.
 
 ### Usage
 
-For MSCOCO dataset
+1. Click **Open Dir** to select a folder of images, or **Open** for a single image.
+2. Use **Add All Classes** to load all 80 COCO labels, or pick individual ones from the dropdown.
+3. Select **Auto** suggestion mode and click **Detect** to run object detection.
+4. To annotate manually, select a class from the list, then drag a bounding box on the canvas.
+5. Use **← →** arrow keys to move between images. Annotations save automatically on navigation.
+6. Final annotations are written to:
+   - `annotations/annotations.csv`
+   - `annotations/annotations_voc/<image>.xml` (Pascal VOC)
+
+To annotate a custom (non-COCO) dataset, update the label map in `config.py` before running.
+
+### Tested on
+
+- Windows 10
+- Ubuntu 16.04
+- macOS High Sierra
+
+---
+
+## Web App
+
+See [`web/README.md`](web/README.md) for installation, usage, and API reference.
+
+**Quick start:**
+```bash
+# Backend (port 8000)
+cd web/backend && python main.py
+
+# Frontend (port 3000)
+cd web/frontend && npm install && npm run dev
 ```
-python main.py
-```
-For any other dataset-
 
-First change the labels in config.py (for keras model) or in tf_config.py( for tensorflow model).
-Then run:
-```
-python main.py
+Or use the convenience script:
+```bash
+cd web && bash start.sh
 ```
 
-#### Tested on:
-1. Windows 10
+---
 
-2. Linux 16.04
+## Output Formats
 
-3. macOS High Sierra
+Both interfaces produce identical output:
 
-### Join the developers channel for contributions
+| Format | Location | Description |
+|--------|----------|-------------|
+| CSV | `annotations/annotations.csv` | `image_path,x1,y1,x2,y2,label` per row |
+| Pascal VOC XML | `annotations/annotations_voc/` | One XML file per image |
+
+---
+
+## Acknowledgments
+
+- [Meditab Software Inc.](https://www.meditab.com/)
+- [PyTorch / Torchvision](https://pytorch.org/) for the RetinaNet implementation
+- [Computer Vision Group](https://cvgldce.github.io/), L.D. College of Engineering
+
+### Join the developers channel
 
 Slack: https://join.slack.com/t/annomage/shared_invite/zt-dh4ca9du-4VOcwUMCSNA6lmyG~tNUPg
-
-### Acknowledgments
-
-1) [Meditab Software Inc.](https://www.meditab.com/)
-
-2) [Keras implementation of RetinaNet object detection](https://github.com/fizyr/keras-retinanet)
-
-3) [Computer Vision Group](https://cvgldce.github.io/), L.D. College of Engineering

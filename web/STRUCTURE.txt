@@ -1,0 +1,329 @@
+Anno-Mage Web - Complete Project Structure
+==========================================
+
+web/
+│
+├── 📚 DOCUMENTATION (7 comprehensive guides, 2600+ lines)
+│   ├── INDEX.md              ← Start here! Documentation navigation
+│   ├── QUICKSTART.md         ← 5-minute getting started guide
+│   ├── README.md             ← Complete user manual & API docs
+│   ├── FEATURES.md           ← Detailed feature descriptions
+│   ├── ARCHITECTURE.md       ← System design & technical details
+│   ├── DEVELOPMENT.md        ← Developer contribution guide
+│   ├── COMPARISON.md         ← Tkinter vs Web comparison
+│   └── PROJECT_SUMMARY.md    ← This project overview
+│
+├── 🚀 SCRIPTS
+│   └── start.sh              ← Convenience script (starts both servers)
+│
+├── 🔧 BACKEND (FastAPI + PyTorch)
+│   ├── main.py               ← FastAPI app with 9 endpoints (~250 lines)
+│   │   ├── GET  /                    → Health check
+│   │   ├── GET  /api/labels          → Get COCO labels
+│   │   ├── POST /api/upload          → Upload image
+│   │   ├── GET  /api/image/:filename → Serve image
+│   │   ├── POST /api/detect          → Run detection
+│   │   ├── POST /api/save            → Save annotations
+│   │   ├── POST /api/model/change    → Change model/threshold
+│   │   ├── GET  /api/images          → List images
+│   │   └── GET  /docs                → Swagger UI
+│   │
+│   ├── requirements.txt      ← Python dependencies
+│   │   ├── fastapi==0.109.0
+│   │   ├── uvicorn[standard]==0.27.0
+│   │   ├── python-multipart==0.0.6
+│   │   ├── Pillow==10.2.0
+│   │   ├── torch>=2.0.0
+│   │   ├── torchvision>=0.15.0
+│   │   ├── pascal-voc-writer==0.1.4
+│   │   └── pydantic==2.5.0
+│   │
+│   ├── .gitignore            ← Ignore venv, uploads, annotations
+│   │
+│   ├── venv/                 ← Virtual environment (created during setup)
+│   │
+│   ├── uploads/              ← Uploaded images (created at runtime)
+│   │   └── [user-images].jpg
+│   │
+│   └── annotations/          ← Saved annotations (created at runtime)
+│       ├── annotations.csv
+│       └── annotations_voc/
+│           └── [image-name].xml
+│
+└── 🎨 FRONTEND (React + TypeScript + Vite)
+    │
+    ├── public/               ← Static assets
+    │
+    ├── src/                  ← Source code (~900 lines total)
+    │   │
+    │   ├── main.tsx          ← Entry point (renders App)
+    │   │
+    │   ├── App.tsx           ← Main application component (~400 lines)
+    │   │   ├── State Management
+    │   │   │   ├── currentImage
+    │   │   │   ├── bboxes
+    │   │   │   ├── labels
+    │   │   │   ├── selectedLabels
+    │   │   │   ├── currentLabel
+    │   │   │   ├── threshold
+    │   │   │   └── message
+    │   │   │
+    │   │   ├── Layout (3-panel)
+    │   │   │   ├── Left Sidebar (Controls)
+    │   │   │   ├── Center Canvas (AnnotationCanvas)
+    │   │   │   └── Right Sidebar (Annotations list)
+    │   │   │
+    │   │   └── Event Handlers
+    │   │       ├── handleImageUpload
+    │   │       ├── handleDetect
+    │   │       ├── handleBboxCreate/Update/Delete
+    │   │       ├── handleSave
+    │   │       └── handleLabelToggle
+    │   │
+    │   ├── index.css         ← Global styles (Tailwind imports)
+    │   │   ├── @tailwind base
+    │   │   ├── @tailwind components
+    │   │   ├── @tailwind utilities
+    │   │   └── Custom body styles
+    │   │
+    │   ├── types.ts          ← TypeScript interfaces
+    │   │   ├── BoundingBox
+    │   │   ├── ImageInfo
+    │   │   └── Detection
+    │   │
+    │   ├── components/
+    │   │   └── AnnotationCanvas.tsx  ← Interactive canvas (~300 lines)
+    │   │       ├── Konva Stage/Layer
+    │   │       ├── Image rendering
+    │   │       ├── Bounding boxes
+    │   │       ├── Corner handles (draggable)
+    │   │       ├── Mouse event handlers
+    │   │       └── Coordinate conversion (display ↔ original)
+    │   │
+    │   ├── api/
+    │   │   └── client.ts     ← API client with 7 methods
+    │   │       ├── getLabels()
+    │   │       ├── uploadImage()
+    │   │       ├── detectObjects()
+    │   │       ├── saveAnnotations()
+    │   │       ├── changeModel()
+    │   │       ├── listImages()
+    │   │       └── getImageUrl()
+    │   │
+    │   └── utils/
+    │       └── colors.ts     ← Color palette (8 colors)
+    │           ├── COLORS array
+    │           └── getColorForIndex()
+    │
+    ├── index.html            ← HTML entry point
+    │
+    ├── package.json          ← Dependencies & scripts
+    │   ├── Dependencies:
+    │   │   ├── react@18.2.0
+    │   │   ├── react-dom@18.2.0
+    │   │   ├── react-konva@18.2.10
+    │   │   ├── konva@9.3.1
+    │   │   ├── axios@1.6.5
+    │   │   └── lucide-react@0.312.0
+    │   │
+    │   ├── DevDependencies:
+    │   │   ├── @vitejs/plugin-react@4.2.1
+    │   │   ├── typescript@5.3.3
+    │   │   ├── vite@5.0.11
+    │   │   ├── tailwindcss@3.4.1
+    │   │   └── eslint + plugins
+    │   │
+    │   └── Scripts:
+    │       ├── dev    → vite (dev server)
+    │       ├── build  → tsc && vite build
+    │       └── preview → vite preview
+    │
+    ├── vite.config.ts        ← Vite configuration
+    │   ├── React plugin
+    │   ├── Dev server (port 3000)
+    │   └── Proxy to backend
+    │
+    ├── tsconfig.json         ← TypeScript config (strict mode)
+    ├── tsconfig.node.json    ← TS config for Vite
+    │
+    ├── tailwind.config.js    ← TailwindCSS config
+    │   └── Content paths
+    │
+    ├── postcss.config.js     ← PostCSS config
+    │   ├── tailwindcss
+    │   └── autoprefixer
+    │
+    ├── .eslintrc.cjs         ← ESLint config
+    │   ├── TypeScript parser
+    │   ├── React plugin
+    │   └── Rules
+    │
+    ├── .gitignore            ← Ignore node_modules, dist
+    │
+    └── node_modules/         ← Dependencies (created during npm install)
+
+
+ARCHITECTURE OVERVIEW
+=====================
+
+┌─────────────────────────────────────────────────┐
+│              User's Browser                      │
+│  ┌───────────────────────────────────────────┐  │
+│  │    React App (http://localhost:3000)      │  │
+│  │                                            │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌─────────┐ │  │
+│  │  │   App    │→ │Components│→ │ Canvas  │ │  │
+│  │  └────┬─────┘  └──────────┘  └─────────┘ │  │
+│  │       │                                    │  │
+│  │       │ Axios HTTP Client                 │  │
+│  │       ▼                                    │  │
+│  │  ┌──────────┐                             │  │
+│  │  │API Client│                             │  │
+│  │  └────┬─────┘                             │  │
+│  └───────┼──────────────────────────────────┘  │
+└──────────┼─────────────────────────────────────┘
+           │
+           │ REST API (JSON over HTTP)
+           │
+┌──────────▼─────────────────────────────────────┐
+│    FastAPI Server (http://localhost:8000)      │
+│  ┌───────────────────────────────────────────┐ │
+│  │          9 API Endpoints                   │ │
+│  │  /labels /upload /detect /save etc.       │ │
+│  └───────┬────────────────┬──────────────────┘ │
+│          │                │                     │
+│  ┌───────▼──────┐  ┌──────▼─────────────────┐ │
+│  │File Manager  │  │  Model Inference       │ │
+│  │(Upload/Save) │  │  (PyTorch RetinaNet)   │ │
+│  └──────────────┘  └────────────────────────┘ │
+│          │                                      │
+│  ┌───────▼──────────────────────────────────┐ │
+│  │      File System (uploads/, annotations/) │ │
+│  └───────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────┘
+
+
+GETTING STARTED
+===============
+
+1. Setup Backend:
+   cd web/backend
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   pip install torch torchvision
+
+2. Setup Frontend:
+   cd web/frontend
+   npm install
+
+3. Run Backend:
+   cd web/backend
+   source venv/bin/activate
+   python main.py
+
+4. Run Frontend (new terminal):
+   cd web/frontend
+   npm run dev
+
+5. Open Browser:
+   http://localhost:3000
+
+Or use the start script (Linux/Mac):
+   cd web
+   ./start.sh
+
+
+KEY FILES TO UNDERSTAND
+=======================
+
+For Users:
+  → web/QUICKSTART.md        (start here)
+  → web/README.md            (full guide)
+  → web/FEATURES.md          (what it can do)
+
+For Developers:
+  → web/ARCHITECTURE.md      (how it works)
+  → web/DEVELOPMENT.md       (how to contribute)
+  → backend/main.py          (backend logic)
+  → frontend/src/App.tsx     (frontend logic)
+  → frontend/src/components/AnnotationCanvas.tsx (canvas)
+
+
+WORKFLOW
+========
+
+Upload → Select Labels → Auto Detect → Manual Adjust → Save
+
+1. User uploads image (frontend)
+   ↓
+2. Image sent to backend, saved, dimensions returned
+   ↓
+3. User selects labels and clicks "Detect"
+   ↓
+4. Backend runs RetinaNet inference
+   ↓
+5. Detections sent back to frontend
+   ↓
+6. Bounding boxes drawn on canvas
+   ↓
+7. User can draw more boxes or edit existing
+   ↓
+8. User clicks "Save"
+   ↓
+9. Backend writes CSV and VOC XML files
+   ↓
+10. Success message shown to user
+
+
+DEPENDENCIES SUMMARY
+====================
+
+Backend (Python):
+  - FastAPI         (web framework)
+  - PyTorch         (ML inference)
+  - Torchvision     (RetinaNet model)
+  - Pillow          (image processing)
+  - Uvicorn         (ASGI server)
+
+Frontend (Node):
+  - React           (UI library)
+  - TypeScript      (type safety)
+  - Vite            (build tool)
+  - TailwindCSS     (styling)
+  - Konva.js        (canvas rendering)
+  - Axios           (HTTP client)
+
+
+PORTS
+=====
+
+Backend:  http://localhost:8000
+Frontend: http://localhost:3000
+API Docs: http://localhost:8000/docs
+
+
+OUTPUT
+======
+
+Annotations saved to:
+  - CSV: web/backend/annotations/annotations.csv
+  - XML: web/backend/annotations/annotations_voc/*.xml
+
+Format:
+  CSV: image_path,x1,y1,x2,y2,label
+  XML: Pascal VOC format
+
+
+NEXT STEPS
+==========
+
+1. Read QUICKSTART.md
+2. Set up the application
+3. Annotate your first image
+4. Explore FEATURES.md
+5. Check API docs at /docs
+6. Read ARCHITECTURE.md to understand internals
+7. Contribute via DEVELOPMENT.md
+
+Happy Annotating! 🎨
