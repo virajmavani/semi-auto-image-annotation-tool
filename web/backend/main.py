@@ -4,6 +4,7 @@ FastAPI backend for Semi-Automatic Image Annotation Tool
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import sys
@@ -14,18 +15,19 @@ import io
 from PIL import Image
 import shutil
 
-# Add parent directory to path to import models
-parent_dir = Path(__file__).parent.parent.parent.absolute()
-sys.path.append(str(parent_dir))
-
-from models import ModelFactory
+try:
+    from models import ModelFactory
+except ImportError:
+    parent_dir = Path(__file__).parent.parent.parent.absolute()
+    sys.path.insert(0, str(parent_dir))
+    from models import ModelFactory
 
 app = FastAPI(title="Anno-Mage API", version="1.0.0")
 
 # CORS middleware for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,9 +42,10 @@ current_threshold = 0.5
 current_dataset_dir = None
 
 # Paths
-UPLOAD_DIR = Path("web/backend/uploads")
-ANNOTATIONS_DIR = Path("web/backend/annotations")
-SNAPSHOTS_DIR = parent_dir / "snapshots"
+_DATA_DIR = Path.home() / ".anno-mage"
+UPLOAD_DIR = _DATA_DIR / "uploads"
+ANNOTATIONS_DIR = _DATA_DIR / "annotations"
+SNAPSHOTS_DIR = Path(os.environ.get("ANNO_MAGE_SNAPSHOTS", str(Path.cwd() / "snapshots")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -509,6 +512,14 @@ async def load_annotations(filename: str):
     except Exception as e:
         # Return empty if no annotations exist
         return {"bboxes": []}
+
+
+from importlib.resources import files as pkg_files
+try:
+    _static = pkg_files("anno_mage").joinpath("static")
+    app.mount("/", StaticFiles(directory=str(_static), html=True), name="static")
+except Exception:
+    pass  # Running in dev mode without bundled frontend
 
 
 if __name__ == "__main__":

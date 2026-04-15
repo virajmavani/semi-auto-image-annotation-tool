@@ -3,3 +3,6 @@ __pycache__
 .python-version
 
 annotations_voc
+anno_mage/static/
+dist/
+*.egg-info/

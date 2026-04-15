@@ -87,6 +87,51 @@ cd web && bash start.sh
 
 ---
 
+## PyPI Distribution
+
+### Install from PyPI
+
+```bash
+pip install anno-mage
+anno-mage
+```
+
+The app opens in your browser automatically. Annotations are saved to `~/.anno-mage/annotations/`.
+
+### Publish a Release
+
+Releases publish automatically to PyPI when a version tag is pushed. GitHub Actions builds the frontend, packages everything, and publishes via PyPI Trusted Publishers (no tokens required).
+
+**One-time PyPI setup:**
+1. Go to your PyPI project → *Manage* → *Publishing* → *Add a new publisher*
+2. Set: GitHub repo `virajmavani/semi-auto-image-annotation-tool`, workflow `release.yml`, environment `pypi`
+
+**To release:**
+```bash
+git tag v2.0.1
+git push origin v2.0.1
+```
+
+That's it — the workflow in `.github/workflows/release.yml` handles the rest.
+
+### Build Locally
+
+To build the package without publishing:
+
+**Prerequisites:**
+```bash
+pip install build
+npm install  # inside web/frontend if not already done
+```
+
+```bash
+bash build_release.sh
+```
+
+This compiles the React frontend, copies the build into `anno_mage/static/`, and produces wheel and sdist artifacts in `dist/`.
+
+---
+
 ## Output Formats
 
 Both interfaces produce identical output:

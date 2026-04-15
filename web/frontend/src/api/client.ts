@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Detection, ImageInfo, BoundingBox, ModelInfo } from '../types';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = '';
 
 export const api = {
   async getModels(): Promise<{ models: ModelInfo[]; current_model: string; current_threshold: number }> {
