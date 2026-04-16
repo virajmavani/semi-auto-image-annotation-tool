@@ -114,6 +114,7 @@ def mock_model():
     model.get_labels.return_value = FAKE_LABELS
     model.preprocess_image.return_value = MagicMock()
     model.predict.return_value = list(FAKE_DETECTIONS)
+    model.is_zero_shot.return_value = False
     return model
 
 
@@ -179,6 +180,7 @@ def reset_global_state(client, mock_model):  # noqa: ARG001
     mock_model.get_labels.return_value = FAKE_LABELS
     mock_model.preprocess_image.return_value = MagicMock()
     mock_model.predict.return_value = list(FAKE_DETECTIONS)
+    mock_model.is_zero_shot.return_value = False
 
     yield
 

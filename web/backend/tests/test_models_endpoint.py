@@ -23,6 +23,7 @@ def test_models_entries_have_required_fields(client):
         assert "description" in m
         assert "framework" in m
         assert "is_current" in m
+        assert "is_zero_shot" in m
 
 
 def test_models_exactly_one_is_current(client):
@@ -47,3 +48,23 @@ def test_models_retinanet_is_pytorch(client):
     retinanet = next((m for m in models if m["id"] == "retinanet"), None)
     assert retinanet is not None
     assert retinanet["framework"] == "pytorch"
+
+
+def test_models_retinanet_is_not_zero_shot(client):
+    models = client.get("/api/models").json()["models"]
+    retinanet = next((m for m in models if m["id"] == "retinanet"), None)
+    assert retinanet is not None
+    assert retinanet["is_zero_shot"] is False
+
+
+def test_models_owlv2_present(client):
+    models = client.get("/api/models").json()["models"]
+    owlv2 = next((m for m in models if m["id"] == "owlv2"), None)
+    assert owlv2 is not None
+
+
+def test_models_owlv2_is_zero_shot(client):
+    models = client.get("/api/models").json()["models"]
+    owlv2 = next((m for m in models if m["id"] == "owlv2"), None)
+    assert owlv2 is not None
+    assert owlv2["is_zero_shot"] is True

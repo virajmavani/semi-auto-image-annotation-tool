@@ -74,3 +74,29 @@ def test_detect_calls_preprocess_and_predict(client, uploaded_image, mock_model,
     _detect(client, img_path, ["person"])
     mock_model.preprocess_image.assert_called_once()
     mock_model.predict.assert_called_once()
+
+
+def test_detect_zero_shot_passes_text_queries(client, uploaded_image, mock_model, mock_read_image):
+    """Zero-shot model: selected_labels forwarded as text_queries, no post-filtering."""
+    mock_model.is_zero_shot.return_value = True
+    mock_model.predict.return_value = [
+        {"box": [10, 20, 100, 200], "label": "vintage teapot", "score": 0.85}
+    ]
+    img_path = str(main.UPLOAD_DIR / uploaded_image)
+    resp = _detect(client, img_path, ["vintage teapot"])
+    assert resp.status_code == 200
+    detections = resp.json()["detections"]
+    assert len(detections) == 1
+    assert detections[0]["label"] == "vintage teapot"
+    _, kwargs = mock_model.predict.call_args
+    assert kwargs.get("text_queries") == ["vintage teapot"]
+
+
+def test_detect_zero_shot_empty_labels_returns_empty(client, uploaded_image, mock_model, mock_read_image):
+    """Zero-shot model with no queries returns empty detections immediately."""
+    mock_model.is_zero_shot.return_value = True
+    img_path = str(main.UPLOAD_DIR / uploaded_image)
+    resp = _detect(client, img_path, [])
+    assert resp.status_code == 200
+    assert resp.json()["detections"] == []
+    mock_model.predict.assert_not_called()
