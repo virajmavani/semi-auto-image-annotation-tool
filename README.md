@@ -2,7 +2,6 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/anno-mage)](https://pypi.org/project/anno-mage/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/anno-mage)](https://pypi.org/project/anno-mage/)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/anno-mage)](https://pypi.org/project/anno-mage/)
 [![Publish to PyPI](https://github.com/virajmavani/semi-auto-image-annotation-tool/actions/workflows/release.yml/badge.svg)](https://github.com/virajmavani/semi-auto-image-annotation-tool/actions/workflows/release.yml)
 [![License](https://img.shields.io/github/license/virajmavani/semi-auto-image-annotation-tool)](LICENSE)
 
