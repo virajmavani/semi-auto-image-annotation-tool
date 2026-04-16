@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  backend-tests:
+    name: Backend API tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          pip install \
+            fastapi==0.109.0 \
+            python-multipart>=0.0.26 \
+            Pillow>=10.3.0 \
+            pascal-voc-writer==0.1.4 \
+            pydantic==2.5.0 \
+            numpy \
+            httpx \
+            pytest \
+            pytest-mock
+
+      - name: Run backend tests
+        run: pytest web/backend/tests/ -v

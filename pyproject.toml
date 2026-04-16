@@ -29,3 +29,7 @@ exclude = ["web.frontend*"]
 
 [tool.setuptools.package-data]
 "anno_mage" = ["static/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["web/backend/tests"]
+# conftest.py handles sys.path; no pythonpath needed here.
