@@ -19,6 +19,15 @@ dependencies = [
     "pascal-voc-writer>=0.1.4",
     "pydantic>=2.5.0",
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+]
 
 [project.scripts]
 anno-mage = "anno_mage.cli:main"
