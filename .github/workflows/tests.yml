@@ -21,13 +21,14 @@ jobs:
       - name: Install test dependencies
         run: |
           pip install \
-            fastapi==0.109.0 \
+            fastapi==0.136.0 \
+            uvicorn==0.44.0 \
             python-multipart>=0.0.26 \
             Pillow>=10.3.0 \
             pascal-voc-writer==0.1.4 \
-            pydantic==2.5.0 \
+            pydantic==2.13.1 \
+            httpx==0.28.1 \
             numpy \
-            httpx \
             pytest \
             pytest-mock
 
