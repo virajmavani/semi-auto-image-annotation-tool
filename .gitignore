@@ -2,6 +2,7 @@ __pycache__
 .DS_Store
 .python-version
 
+my_venv/
 annotations_voc
 anno_mage/static/
 dist/
