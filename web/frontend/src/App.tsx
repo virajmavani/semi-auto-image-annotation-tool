@@ -32,8 +32,15 @@ function App() {
   // Auto-detect setting
   const [autoDetectOnLoad, setAutoDetectOnLoad] = useState<boolean>(false);
 
+  // Zero-shot query state
+  const [zeroShotQueries, setZeroShotQueries] = useState<string[]>([]);
+  const [zeroShotInput, setZeroShotInput] = useState('');
+
   // Theme settings
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Derived: is the current model zero-shot?
+  const isZeroShot = availableModels.find(m => m.id === currentModelId)?.is_zero_shot ?? false;
 
   useEffect(() => {
     loadModelsAndLabels();
@@ -70,7 +77,8 @@ function App() {
       showMessage('success', 'Image uploaded successfully');
 
       // Auto-detect if enabled
-      if (autoDetectOnLoad && selectedLabels.size > 0) {
+      const hasLabels = isZeroShot ? zeroShotQueries.length > 0 : selectedLabels.size > 0;
+      if (autoDetectOnLoad && hasLabels) {
         await runAutoDetection(imageInfo);
       }
     } catch (error) {
@@ -79,8 +87,14 @@ function App() {
   };
 
   const handleDetect = async () => {
-    if (!currentImage || selectedLabels.size === 0) {
-      showMessage('error', 'Please select labels and upload an image');
+    if (!currentImage) {
+      showMessage('error', 'Please upload an image');
+      return;
+    }
+
+    const labelsToSend = isZeroShot ? zeroShotQueries : Array.from(selectedLabels);
+    if (labelsToSend.length === 0) {
+      showMessage('error', isZeroShot ? 'Please enter at least one label query' : 'Please select labels');
       return;
     }
 
@@ -88,7 +102,7 @@ function App() {
     try {
       const detections = await api.detectObjects(
         currentImage.path,
-        Array.from(selectedLabels)
+        labelsToSend
       );
 
       const newBboxes: BoundingBox[] = detections.map((det, idx) => ({
@@ -193,7 +207,9 @@ function App() {
       // Reload labels as different models may have different label sets
       const cocoLabels = await api.getLabels();
       setLabels(cocoLabels);
-      setSelectedLabels(new Set()); // Clear selected labels
+      setSelectedLabels(new Set());
+      setZeroShotQueries([]);
+      setZeroShotInput('');
     } catch (error: any) {
       showMessage('error', error.response?.data?.detail || 'Failed to change model');
     }
@@ -253,20 +269,22 @@ function App() {
       setBboxes(bboxesWithColors);
 
       // Auto-detect if enabled and no existing annotations
-      if (autoDetectOnLoad && selectedLabels.size > 0 && loadedBboxes.length === 0) {
+      const hasLabels = isZeroShot ? zeroShotQueries.length > 0 : selectedLabels.size > 0;
+      if (autoDetectOnLoad && hasLabels && loadedBboxes.length === 0) {
         await runAutoDetection(imageInfo);
       }
     }
   };
 
   const runAutoDetection = async (imageInfo: ImageInfo) => {
-    if (selectedLabels.size === 0) return;
+    const labelsToSend = isZeroShot ? zeroShotQueries : Array.from(selectedLabels);
+    if (labelsToSend.length === 0) return;
 
     setIsDetecting(true);
     try {
       const detections = await api.detectObjects(
         imageInfo.path,
-        Array.from(selectedLabels)
+        labelsToSend
       );
 
       const newBboxes: BoundingBox[] = detections.map((det, idx) => ({
@@ -357,6 +375,18 @@ function App() {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [isDatasetMode, currentImageIndex, imageList, bboxes]);
+
+  const handleAddZeroShotQuery = () => {
+    const q = zeroShotInput.trim();
+    if (q && !zeroShotQueries.includes(q)) {
+      setZeroShotQueries([...zeroShotQueries, q]);
+    }
+    setZeroShotInput('');
+  };
+
+  const handleRemoveZeroShotQuery = (q: string) => {
+    setZeroShotQueries(zeroShotQueries.filter(x => x !== q));
+  };
 
   const themeClasses = {
     dark: {
@@ -506,8 +536,8 @@ function App() {
             <div className="space-y-2">
               <button
                 onClick={handleDetect}
-                disabled={!currentImage || selectedLabels.size === 0 || isDetecting}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-white ${!currentImage || selectedLabels.size === 0 || isDetecting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!currentImage || (isZeroShot ? zeroShotQueries.length === 0 : selectedLabels.size === 0) || isDetecting}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-white ${!currentImage || (isZeroShot ? zeroShotQueries.length === 0 : selectedLabels.size === 0) || isDetecting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Play size={18} />
                 <span>{isDetecting ? 'Detecting...' : 'Auto Detect'}</span>
@@ -522,65 +552,121 @@ function App() {
                 />
                 <span className="text-sm">Auto-detect on image load</span>
               </label>
-              {autoDetectOnLoad && selectedLabels.size === 0 && (
+              {autoDetectOnLoad && (isZeroShot ? zeroShotQueries.length === 0 : selectedLabels.size === 0) && (
                 <p className="text-xs text-yellow-500">
-                  Select labels to enable auto-detection
+                  {isZeroShot ? 'Add label queries to enable auto-detection' : 'Select labels to enable auto-detection'}
                 </p>
               )}
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium">Select Labels</label>
-                <div className="flex gap-1">
+            {isZeroShot ? (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Label Queries</label>
+                  {zeroShotQueries.length > 0 && (
+                    <button
+                      onClick={() => setZeroShotQueries([])}
+                      className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={zeroShotInput}
+                    onChange={(e) => setZeroShotInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddZeroShotQuery()}
+                    placeholder='e.g. "vintage ceramic teapot"'
+                    className={`flex-1 px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500 text-sm`}
+                  />
                   <button
-                    onClick={handleSelectAllLabels}
-                    className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
+                    onClick={handleAddZeroShotQuery}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white text-sm"
                   >
-                    Select All
-                  </button>
-                  <button
-                    onClick={handleDeselectAllLabels}
-                    className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
-                  >
-                    Clear
+                    Add
                   </button>
                 </div>
+                {zeroShotQueries.length > 0 && (
+                  <div className={`flex flex-wrap gap-1 p-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg`}>
+                    {zeroShotQueries.map(q => (
+                      <span
+                        key={q}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-purple-600 text-white text-xs rounded-full"
+                      >
+                        {q}
+                        <button
+                          onClick={() => handleRemoveZeroShotQuery(q)}
+                          className="ml-1 hover:text-red-200 leading-none"
+                          aria-label={`Remove ${q}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className={`text-xs ${currentTheme.textSecondary} mt-1`}>
+                  Type any object description and press Enter or Add
+                </p>
               </div>
-              <div className={`space-y-1 max-h-60 overflow-y-auto ${currentTheme.input} rounded-lg p-2 border ${currentTheme.border}`}>
-                {labels.map(label => (
-                  <label key={label} className={`flex items-center gap-2 p-1 ${currentTheme.hover} rounded cursor-pointer`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedLabels.has(label)}
-                      onChange={() => handleLabelToggle(label)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium">Select Labels</label>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={handleSelectAllLabels}
+                        className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={handleDeselectAllLabels}
+                        className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                  <div className={`space-y-1 max-h-60 overflow-y-auto ${currentTheme.input} rounded-lg p-2 border ${currentTheme.border}`}>
+                    {labels.map(label => (
+                      <label key={label} className={`flex items-center gap-2 p-1 ${currentTheme.hover} rounded cursor-pointer`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedLabels.has(label)}
+                          onChange={() => handleLabelToggle(label)}
+                          className="rounded"
+                        />
+                        <span className="text-sm">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Add Custom Label</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={customLabel}
-                  onChange={(e) => setCustomLabel(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomLabel()}
-                  placeholder="Enter label"
-                  className={`flex-1 px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500`}
-                />
-                <button
-                  onClick={handleAddCustomLabel}
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white"
-                >
-                  <Tag size={18} />
-                </button>
-              </div>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Add Custom Label</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customLabel}
+                      onChange={(e) => setCustomLabel(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddCustomLabel()}
+                      placeholder="Enter label"
+                      className={`flex-1 px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500`}
+                    />
+                    <button
+                      onClick={handleAddCustomLabel}
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white"
+                    >
+                      <Tag size={18} />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-2">Current Label for Drawing</label>
@@ -590,7 +676,7 @@ function App() {
                 className={`w-full px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500`}
               >
                 <option value="">Select a label</option>
-                {labels.map(label => (
+                {(isZeroShot ? zeroShotQueries : labels).map(label => (
                   <option key={label} value={label}>{label}</option>
                 ))}
               </select>

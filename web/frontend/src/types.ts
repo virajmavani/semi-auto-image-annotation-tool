@@ -31,4 +31,5 @@ export interface ModelInfo {
   description: string;
   framework: string;
   is_current: boolean;
+  is_zero_shot: boolean;
 }

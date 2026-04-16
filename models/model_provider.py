@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import torch
 from PIL import Image
 
@@ -26,13 +26,15 @@ class AbstractModel(ABC):
         pass
 
     @abstractmethod
-    def predict(self, preprocessed_image: Any) -> List[Dict[str, Any]]:
+    def predict(self, preprocessed_image: Any, text_queries: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
         Run inference on preprocessed image.
         Returns a list of detections, each as a dict with keys:
         - 'box': [x1, y1, x2, y2] in original image coordinates
         - 'label': str, class name
         - 'score': float, confidence score
+
+        text_queries: optional list of text labels for zero-shot models (ignored by fixed-vocabulary models).
         """
         pass
 
@@ -43,3 +45,7 @@ class AbstractModel(ABC):
         Should be MS COCO labels for compatibility.
         """
         pass
+
+    def is_zero_shot(self) -> bool:
+        """Return True if this model accepts free-form text queries at inference time."""
+        return False

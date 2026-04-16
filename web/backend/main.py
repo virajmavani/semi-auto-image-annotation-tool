@@ -62,8 +62,17 @@ AVAILABLE_MODELS = {
         "description": "Default PyTorch RetinaNet model (COCO pre-trained)",
         "type": "retinanet",
         "weights_path": None,
-        "framework": "pytorch"
-    }
+        "framework": "pytorch",
+        "is_zero_shot": False,
+    },
+    "owlv2": {
+        "name": "OWL-v2 (Zero-Shot)",
+        "description": "Open-vocabulary — type any label",
+        "type": "owlv2",
+        "weights_path": None,
+        "framework": "pytorch",
+        "is_zero_shot": True,
+    },
 }
 
 
@@ -174,7 +183,8 @@ async def get_models():
             "name": model_info["name"],
             "description": model_info["description"],
             "framework": model_info["framework"],
-            "is_current": model_id == current_model_type
+            "is_current": model_id == current_model_type,
+            "is_zero_shot": model_info.get("is_zero_shot", False),
         })
     return {
         "models": models_list,
@@ -267,20 +277,28 @@ async def detect_objects(request: DetectionRequest):
 
         # Preprocess and predict
         preprocessed = model.preprocess_image(img)
-        detections = model.predict(preprocessed)
 
-        # Filter by selected labels
-        filtered_detections = []
-        for detection in detections:
-            if detection['label'] in request.selected_labels:
-                filtered_detections.append({
-                    "x1": int(detection['box'][0]),
-                    "y1": int(detection['box'][1]),
-                    "x2": int(detection['box'][2]),
-                    "y2": int(detection['box'][3]),
-                    "label": detection['label'],
-                    "score": float(detection['score'])
-                })
+        def format_detection(d):
+            return {
+                "x1": int(d['box'][0]),
+                "y1": int(d['box'][1]),
+                "x2": int(d['box'][2]),
+                "y2": int(d['box'][3]),
+                "label": d['label'],
+                "score": float(d['score']),
+            }
+
+        if model.is_zero_shot():
+            if not request.selected_labels:
+                return {"detections": []}
+            detections = model.predict(preprocessed, text_queries=list(request.selected_labels))
+            filtered_detections = [format_detection(d) for d in detections]
+        else:
+            detections = model.predict(preprocessed)
+            filtered_detections = [
+                format_detection(d) for d in detections
+                if d['label'] in request.selected_labels
+            ]
 
         return {"detections": filtered_detections}
 

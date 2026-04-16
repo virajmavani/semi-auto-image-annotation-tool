@@ -44,7 +44,7 @@ class RetinaNetModel(AbstractModel):
         batch = [self.preprocess(image)]
         return batch[0]  # Return single tensor, not batch
 
-    def predict(self, preprocessed_image: torch.Tensor) -> List[Dict[str, Any]]:
+    def predict(self, preprocessed_image: torch.Tensor, text_queries=None) -> List[Dict[str, Any]]:
         """
         Run inference and return standardized detections.
         """
