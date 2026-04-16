@@ -157,10 +157,6 @@ async def startup_event():
         print(f"Error loading model: {e}")
 
 
-@app.get("/")
-async def root():
-    return {"message": "Anno-Mage API is running"}
-
 
 @app.get("/api/models")
 async def get_models():
