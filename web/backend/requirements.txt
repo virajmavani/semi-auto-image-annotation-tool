@@ -1,7 +1,7 @@
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
-python-multipart==0.0.6
-Pillow==10.2.0
+python-multipart>=0.0.26
+Pillow>=10.3.0
 torch>=2.0.0
 torchvision>=0.15.0
 pascal-voc-writer==0.1.4

@@ -14,7 +14,7 @@
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
     "konva": "^9.3.1",
-    "axios": "^1.6.5",
+    "axios": "^1.15.0",
     "lucide-react": "^0.312.0",
     "clsx": "^2.1.0"
   },
@@ -23,7 +23,7 @@
     "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -31,6 +31,17 @@
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
-    "vite": "^5.0.11"
+    "vite": "^6.4.2"
+  },
+  "overrides": {
+    "follow-redirects": ">=1.16.0",
+    "rollup": ">=4.59.0",
+    "flatted": ">=3.4.2",
+    "picomatch": ">=4.0.4",
+    "tinyglobby": {
+      "picomatch": ">=4.0.4"
+    },
+    "minimatch": ">=10.2.3",
+    "esbuild": ">=0.25.0"
   }
 }
