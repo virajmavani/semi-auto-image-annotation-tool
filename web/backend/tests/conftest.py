@@ -46,7 +46,14 @@ def _fake_module(name: str, **attrs):
 
 # Register fakes only if the real libraries aren't available.
 if "torch" not in sys.modules:
-    _fake_module("torch")
+    # retinanet_model.py uses torch.Tensor as a type annotation (evaluated at
+    # class-body parse time) and torch.no_grad() / torch.load() at runtime.
+    _fake_module(
+        "torch",
+        Tensor=type("Tensor", (), {}),   # bare class satisfies the annotation
+        no_grad=MagicMock,               # used as a context manager decorator
+        load=MagicMock(),
+    )
 
 for _name in ("torchvision", "torchvision.io", "torchvision.transforms",
               "torchvision.transforms.functional"):
