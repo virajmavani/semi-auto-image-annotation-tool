@@ -27,7 +27,7 @@ class RetinaNetModel(AbstractModel):
             # Load from custom path - assuming it's a state_dict
             self.weights = RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT  # For meta
             self.model = retinanet_resnet50_fpn_v2(weights=None, box_score_thresh=self.threshold)
-            self.model.load_state_dict(torch.load(weights_path))
+            self.model.load_state_dict(torch.load(weights_path, weights_only=True))
         else:
             self.weights = RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT
             self.model = retinanet_resnet50_fpn_v2(weights=self.weights, box_score_thresh=self.threshold)

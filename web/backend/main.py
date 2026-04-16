@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict
 import sys
 import os
+import asyncio
+import csv
 from pathlib import Path
 import base64
 import io
@@ -37,14 +39,18 @@ app.add_middleware(
 current_model = None
 current_model_type = "retinanet"
 current_threshold = 0.5
+_model_lock = asyncio.Lock()
 
 # Dataset directory
 current_dataset_dir = None
 
+# Upload size limit (50 MB)
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024
+
 # Paths
 _DATA_DIR = Path.home() / ".anno-mage"
 UPLOAD_DIR = _DATA_DIR / "uploads"
-ANNOTATIONS_DIR = _DATA_DIR / "annotations"
+ANNOTATIONS_DIR = Path.cwd()
 SNAPSHOTS_DIR = Path(os.environ.get("ANNO_MAGE_SNAPSHOTS", str(Path.cwd() / "snapshots")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -191,21 +197,33 @@ async def get_labels():
 async def upload_image(file: UploadFile = File(...)):
     """Upload an image file"""
     try:
+        filename = Path(file.filename).name  # strip any directory components
+        validate_filename(filename)
+        if file.size and file.size > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=413, detail="File too large (max 50 MB)")
         # Save uploaded file
-        file_path = UPLOAD_DIR / file.filename
+        file_path = UPLOAD_DIR / filename
+        size_written = 0
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            while chunk := await file.read(1024 * 1024):
+                size_written += len(chunk)
+                if size_written > MAX_UPLOAD_SIZE:
+                    file_path.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail="File too large (max 50 MB)")
+                buffer.write(chunk)
 
         # Get image dimensions
         with Image.open(file_path) as img:
             width, height = img.size
 
         return {
-            "filename": file.filename,
+            "filename": filename,
             "path": str(file_path),
             "width": width,
             "height": height
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
 
@@ -213,7 +231,10 @@ async def upload_image(file: UploadFile = File(...)):
 @app.get("/api/image/{filename}")
 async def get_image(filename: str):
     """Get uploaded image"""
-    file_path = UPLOAD_DIR / filename
+    validate_filename(filename)
+    file_path = (UPLOAD_DIR / filename).resolve()
+    if not file_path.is_relative_to(UPLOAD_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid filename")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(file_path)
@@ -222,22 +243,31 @@ async def get_image(filename: str):
 @app.post("/api/detect")
 async def detect_objects(request: DetectionRequest):
     """Run object detection on an image"""
-    if current_model is None:
+    async with _model_lock:
+        model = current_model
+
+    if model is None:
         raise HTTPException(status_code=500, detail="Model not loaded")
 
     try:
         from torchvision.io.image import read_image
 
-        # Read image
-        img_path = Path(request.image_path)
+        # Validate image path is inside an allowed directory
+        img_path = Path(request.image_path).resolve()
+        allowed_dirs = [UPLOAD_DIR.resolve()]
+        if current_dataset_dir:
+            allowed_dirs.append(Path(current_dataset_dir).resolve())
+        if not any(img_path.is_relative_to(d) for d in allowed_dirs):
+            raise HTTPException(status_code=400, detail="Image path is outside allowed directories")
+
         if not img_path.exists():
             raise HTTPException(status_code=404, detail="Image not found")
 
         img = read_image(str(img_path))
 
         # Preprocess and predict
-        preprocessed = current_model.preprocess_image(img)
-        detections = current_model.predict(preprocessed)
+        preprocessed = model.preprocess_image(img)
+        detections = model.predict(preprocessed)
 
         # Filter by selected labels
         filtered_detections = []
@@ -254,6 +284,8 @@ async def detect_objects(request: DetectionRequest):
 
         return {"detections": filtered_detections}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Detection error: {str(e)}")
 
@@ -264,11 +296,15 @@ async def save_annotations(request: SaveAnnotationRequest):
     try:
         from pascal_voc_writer import Writer
 
-        # Save to CSV
+        # Save to CSV (use csv.writer to prevent CSV injection)
         csv_path = ANNOTATIONS_DIR / "annotations.csv"
-        with open(csv_path, "a") as f:
+        with open(csv_path, "a", newline="") as f:
+            writer_csv = csv.writer(f)
             for bbox in request.bboxes:
-                f.write(f"{request.image_name},{bbox.x1},{bbox.y1},{bbox.x2},{bbox.y2},{bbox.label}\n")
+                writer_csv.writerow([
+                    request.image_name, bbox.x1, bbox.y1,
+                    bbox.x2, bbox.y2, bbox.label
+                ])
 
         # Save to VOC XML
         voc_dir = ANNOTATIONS_DIR / "annotations_voc"
@@ -305,13 +341,9 @@ async def change_model(model_id: str = Form(...), threshold: float = Form(0.5)):
 
         model_info = AVAILABLE_MODELS[model_id]
 
-        # Update global state
-        current_model_type = model_id
-        current_threshold = threshold
-
         # Load the appropriate model based on framework
         if model_info["framework"] == "pytorch":
-            current_model = ModelFactory.create_model(
+            new_model = ModelFactory.create_model(
                 model_info["type"],
                 threshold=threshold,
                 weights_path=model_info["weights_path"]
@@ -323,6 +355,12 @@ async def change_model(model_id: str = Form(...), threshold: float = Form(0.5)):
                 status_code=501,
                 detail=f"{model_info['framework']} models not yet supported in web version. Only PyTorch RetinaNet is currently available."
             )
+
+        # Update global state under lock
+        async with _model_lock:
+            current_model = new_model
+            current_model_type = model_id
+            current_threshold = threshold
 
         return {
             "success": True,
@@ -451,6 +489,9 @@ async def browse_directory(path: str = "~"):
     """List subdirectories at the given path for the directory browser UI"""
     try:
         dir_path = Path(path).expanduser().resolve()
+
+        if not dir_path.is_relative_to(Path.home()):
+            raise HTTPException(status_code=400, detail="Path is outside the allowed directory")
 
         if not dir_path.exists() or not dir_path.is_dir():
             raise HTTPException(status_code=400, detail="Invalid directory path")

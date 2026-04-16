@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "anno-mage"
-version = "2.0.1"
+version = "2.0.2"
 description = "Semi-automatic image annotation tool with AI-assisted object detection"
 readme = "README.md"
 license = { file = "LICENSE" }
