@@ -184,6 +184,43 @@ Place model files in the `snapshots/` directory at the repo root:
 
 The backend scans these on startup and lists them in the model dropdown. To make them fully functional for inference, implement a subclass of `AbstractModel` in `models/` and register it in `ModelFactory`. Currently only PyTorch RetinaNet is wired for inference.
 
+## Testing
+
+The backend has a pytest suite under `web/backend/tests/`. Torch and Torchvision are **not required** — the test suite mocks them out automatically.
+
+### Install test dependencies
+
+```bash
+cd web/backend
+source venv/bin/activate   # activate the backend virtualenv
+pip install pytest pytest-mock httpx
+```
+
+### Run all tests
+
+```bash
+# From the web/backend directory:
+cd web/backend
+pytest tests/
+
+# Or from the repo root:
+pytest web/backend/tests/
+```
+
+### Run a specific test file
+
+```bash
+pytest web/backend/tests/test_detect_endpoint.py
+```
+
+### Verbose output
+
+```bash
+pytest tests/ -v
+```
+
+---
+
 ## Troubleshooting
 
 **Backend port 8000 in use:**
