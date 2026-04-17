@@ -37,7 +37,7 @@ app.add_middleware(
 
 # Global model instance
 current_model = None
-current_model_type = "retinanet"
+current_model_type = "owlv2"
 current_threshold = 0.5
 _model_lock = asyncio.Lock()
 

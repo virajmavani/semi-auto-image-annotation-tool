@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Upload, Save, Play, Trash2, ChevronLeft, ChevronRight, Tag, Moon, Sun, FolderOpen } from 'lucide-react';
+import { Upload, Save, Play, Trash2, ChevronLeft, ChevronRight, Moon, Sun, FolderOpen } from 'lucide-react';
 import { AnnotationCanvas } from './components/AnnotationCanvas';
 import { DirectoryBrowser } from './components/DirectoryBrowser';
 import { BoundingBox, ImageInfo, ModelInfo } from './types';
@@ -10,14 +10,12 @@ function App() {
   const [currentImage, setCurrentImage] = useState<ImageInfo | null>(null);
   const [bboxes, setBboxes] = useState<BoundingBox[]>([]);
   const [labels, setLabels] = useState<string[]>([]);
-  const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
   const [currentLabel, setCurrentLabel] = useState<string | null>(null);
-  const [customLabel, setCustomLabel] = useState('');
   const [threshold, setThreshold] = useState(0.5);
   const [isDetecting, setIsDetecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
-  const [currentModelId, setCurrentModelId] = useState<string>('retinanet');
+  const [currentModelId, setCurrentModelId] = useState<string>('owlv2');
 
   // Dataset mode state
   const [datasetPath, setDatasetPath] = useState<string>('');
@@ -33,8 +31,19 @@ function App() {
   const [autoDetectOnLoad, setAutoDetectOnLoad] = useState<boolean>(false);
 
   // Zero-shot query state
-  const [zeroShotQueries, setZeroShotQueries] = useState<string[]>([]);
+  const [zeroShotQueries, setZeroShotQueries] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('zeroShotQueries');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [zeroShotInput, setZeroShotInput] = useState('');
+
+  useEffect(() => {
+    localStorage.setItem('zeroShotQueries', JSON.stringify(zeroShotQueries));
+  }, [zeroShotQueries]);
 
   // Theme settings
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -77,7 +86,7 @@ function App() {
       showMessage('success', 'Image uploaded successfully');
 
       // Auto-detect if enabled
-      const hasLabels = isZeroShot ? zeroShotQueries.length > 0 : selectedLabels.size > 0;
+      const hasLabels = zeroShotQueries.length > 0;
       if (autoDetectOnLoad && hasLabels) {
         await runAutoDetection(imageInfo);
       }
@@ -92,7 +101,7 @@ function App() {
       return;
     }
 
-    const labelsToSend = isZeroShot ? zeroShotQueries : Array.from(selectedLabels);
+    const labelsToSend = zeroShotQueries;
     if (labelsToSend.length === 0) {
       showMessage('error', isZeroShot ? 'Please enter at least one label query' : 'Please select labels');
       return;
@@ -163,35 +172,6 @@ function App() {
     }
   };
 
-  const handleLabelToggle = (label: string) => {
-    const newSelected = new Set(selectedLabels);
-    if (newSelected.has(label)) {
-      newSelected.delete(label);
-    } else {
-      newSelected.add(label);
-    }
-    setSelectedLabels(newSelected);
-  };
-
-  const handleAddCustomLabel = () => {
-    if (customLabel && !labels.includes(customLabel)) {
-      setLabels([...labels, customLabel]);
-      setCustomLabel('');
-      showMessage('success', 'Label added');
-    }
-  };
-
-  const handleSelectAllLabels = () => {
-    const allLabels = new Set(labels);
-    setSelectedLabels(allLabels);
-    showMessage('success', `All ${labels.length} labels selected`);
-  };
-
-  const handleDeselectAllLabels = () => {
-    setSelectedLabels(new Set());
-    showMessage('success', 'All labels deselected');
-  };
-
   const handleClearAll = () => {
     setBboxes([]);
     showMessage('success', 'All annotations cleared');
@@ -207,7 +187,6 @@ function App() {
       // Reload labels as different models may have different label sets
       const cocoLabels = await api.getLabels();
       setLabels(cocoLabels);
-      setSelectedLabels(new Set());
       setZeroShotQueries([]);
       setZeroShotInput('');
     } catch (error: any) {
@@ -269,7 +248,7 @@ function App() {
       setBboxes(bboxesWithColors);
 
       // Auto-detect if enabled and no existing annotations
-      const hasLabels = isZeroShot ? zeroShotQueries.length > 0 : selectedLabels.size > 0;
+      const hasLabels = zeroShotQueries.length > 0;
       if (autoDetectOnLoad && hasLabels && loadedBboxes.length === 0) {
         await runAutoDetection(imageInfo);
       }
@@ -277,7 +256,7 @@ function App() {
   };
 
   const runAutoDetection = async (imageInfo: ImageInfo) => {
-    const labelsToSend = isZeroShot ? zeroShotQueries : Array.from(selectedLabels);
+    const labelsToSend = zeroShotQueries;
     if (labelsToSend.length === 0) return;
 
     setIsDetecting(true);
@@ -536,8 +515,8 @@ function App() {
             <div className="space-y-2">
               <button
                 onClick={handleDetect}
-                disabled={!currentImage || (isZeroShot ? zeroShotQueries.length === 0 : selectedLabels.size === 0) || isDetecting}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-white ${!currentImage || (isZeroShot ? zeroShotQueries.length === 0 : selectedLabels.size === 0) || isDetecting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!currentImage || zeroShotQueries.length === 0 || isDetecting}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-white ${!currentImage || zeroShotQueries.length === 0 || isDetecting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Play size={18} />
                 <span>{isDetecting ? 'Detecting...' : 'Auto Detect'}</span>
@@ -552,121 +531,85 @@ function App() {
                 />
                 <span className="text-sm">Auto-detect on image load</span>
               </label>
-              {autoDetectOnLoad && (isZeroShot ? zeroShotQueries.length === 0 : selectedLabels.size === 0) && (
+              {autoDetectOnLoad && zeroShotQueries.length === 0 && (
                 <p className="text-xs text-yellow-500">
                   {isZeroShot ? 'Add label queries to enable auto-detection' : 'Select labels to enable auto-detection'}
                 </p>
               )}
             </div>
 
-            {isZeroShot ? (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">Label Queries</label>
-                  {zeroShotQueries.length > 0 && (
-                    <button
-                      onClick={() => setZeroShotQueries([])}
-                      className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={zeroShotInput}
-                    onChange={(e) => setZeroShotInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddZeroShotQuery()}
-                    placeholder='e.g. "vintage ceramic teapot"'
-                    className={`flex-1 px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500 text-sm`}
-                  />
-                  <button
-                    onClick={handleAddZeroShotQuery}
-                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white text-sm"
-                  >
-                    Add
-                  </button>
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">
+                  {isZeroShot ? 'Label Queries' : 'Select Labels'}
+                </label>
                 {zeroShotQueries.length > 0 && (
-                  <div className={`flex flex-wrap gap-1 p-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg`}>
-                    {zeroShotQueries.map(q => (
-                      <span
-                        key={q}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-purple-600 text-white text-xs rounded-full"
-                      >
-                        {q}
-                        <button
-                          onClick={() => handleRemoveZeroShotQuery(q)}
-                          className="ml-1 hover:text-red-200 leading-none"
-                          aria-label={`Remove ${q}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => setZeroShotQueries([])}
+                    className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
+                  >
+                    Clear All
+                  </button>
                 )}
-                <p className={`text-xs ${currentTheme.textSecondary} mt-1`}>
-                  Type any object description and press Enter or Add
-                </p>
               </div>
-            ) : (
-              <>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium">Select Labels</label>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={handleSelectAllLabels}
-                        className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
-                      >
-                        Select All
-                      </button>
-                      <button
-                        onClick={handleDeselectAllLabels}
-                        className={`px-2 py-1 text-xs ${currentTheme.input} border ${currentTheme.border} ${currentTheme.hover} rounded transition-colors`}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                  <div className={`space-y-1 max-h-60 overflow-y-auto ${currentTheme.input} rounded-lg p-2 border ${currentTheme.border}`}>
-                    {labels.map(label => (
-                      <label key={label} className={`flex items-center gap-2 p-1 ${currentTheme.hover} rounded cursor-pointer`}>
-                        <input
-                          type="checkbox"
-                          checked={selectedLabels.has(label)}
-                          onChange={() => handleLabelToggle(label)}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Add Custom Label</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={customLabel}
-                      onChange={(e) => setCustomLabel(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddCustomLabel()}
-                      placeholder="Enter label"
-                      className={`flex-1 px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500`}
-                    />
-                    <button
-                      onClick={handleAddCustomLabel}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white"
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={zeroShotInput}
+                  onChange={(e) => setZeroShotInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddZeroShotQuery()}
+                  placeholder={isZeroShot ? 'e.g. "vintage ceramic teapot"' : 'Type or select a label'}
+                  className={`flex-1 px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500 text-sm`}
+                />
+                <button
+                  onClick={handleAddZeroShotQuery}
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white text-sm"
+                >
+                  Add
+                </button>
+              </div>
+
+              {zeroShotQueries.length > 0 && (
+                <div className={`flex flex-wrap gap-1 p-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg mb-2`}>
+                  {zeroShotQueries.map(q => (
+                    <span
+                      key={q}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-purple-600 text-white text-xs rounded-full"
                     >
-                      <Tag size={18} />
-                    </button>
-                  </div>
+                      {q}
+                      <button
+                        onClick={() => handleRemoveZeroShotQuery(q)}
+                        className="ml-1 hover:text-red-200 leading-none"
+                        aria-label={`Remove ${q}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
                 </div>
-              </>
-            )}
+              )}
+
+              {!isZeroShot && (
+                <div className={`space-y-1 max-h-60 overflow-y-auto ${currentTheme.input} rounded-lg p-2 border ${currentTheme.border}`}>
+                  {labels
+                    .filter(l => !zeroShotQueries.includes(l))
+                    .map(label => (
+                      <button
+                        key={label}
+                        onClick={() => setZeroShotQueries(prev => [...prev, label])}
+                        className={`w-full text-left flex items-center gap-2 p-1 ${currentTheme.hover} rounded cursor-pointer text-sm`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                </div>
+              )}
+
+              <p className={`text-xs ${currentTheme.textSecondary} mt-1`}>
+                {isZeroShot ? 'Type any object description and press Enter or Add' : 'Click a label or type to add'}
+              </p>
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Current Label for Drawing</label>
@@ -676,7 +619,7 @@ function App() {
                 className={`w-full px-3 py-2 ${currentTheme.input} border ${currentTheme.border} rounded-lg focus:outline-none focus:border-blue-500`}
               >
                 <option value="">Select a label</option>
-                {(isZeroShot ? zeroShotQueries : labels).map(label => (
+                {zeroShotQueries.map(label => (
                   <option key={label} value={label}>{label}</option>
                 ))}
               </select>
