@@ -11,6 +11,7 @@ import sys
 import os
 import asyncio
 import csv
+import json
 from pathlib import Path
 import base64
 import io
@@ -50,7 +51,7 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 # Paths
 _DATA_DIR = Path.home() / ".anno-mage"
 UPLOAD_DIR = _DATA_DIR / "uploads"
-ANNOTATIONS_DIR = Path.cwd()
+ANNOTATIONS_DIR = Path.cwd() + "/annotations"
 SNAPSHOTS_DIR = Path(os.environ.get("ANNO_MAGE_SNAPSHOTS", str(Path.cwd() / "snapshots")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -337,10 +338,29 @@ async def save_annotations(request: SaveAnnotationRequest):
         xml_path = voc_dir / f"{base_name}.xml"
         writer.save(str(xml_path))
 
+        # Save to JSONL (Hugging Face-compatible format)
+        jsonl_path = ANNOTATIONS_DIR / "annotations.jsonl"
+        record = {
+            "image": request.image_name,
+            "width": request.image_width,
+            "height": request.image_height,
+            "annotations": [
+                {
+                    "label": bbox.label,
+                    "bbox": [bbox.x1, bbox.y1, bbox.x2, bbox.y2],
+                    **({"score": bbox.score} if bbox.score is not None else {}),
+                }
+                for bbox in request.bboxes
+            ],
+        }
+        with open(jsonl_path, "a") as f:
+            f.write(json.dumps(record) + "\n")
+
         return {
             "success": True,
             "csv_path": str(csv_path),
-            "xml_path": str(xml_path)
+            "xml_path": str(xml_path),
+            "jsonl_path": str(jsonl_path),
         }
 
     except Exception as e:
