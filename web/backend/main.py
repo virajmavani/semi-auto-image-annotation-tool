@@ -51,7 +51,7 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 # Paths
 _DATA_DIR = Path.home() / ".anno-mage"
 UPLOAD_DIR = _DATA_DIR / "uploads"
-ANNOTATIONS_DIR = Path.cwd() + "/annotations"
+ANNOTATIONS_DIR = Path.cwd() / "annotations"
 SNAPSHOTS_DIR = Path(os.environ.get("ANNO_MAGE_SNAPSHOTS", str(Path.cwd() / "snapshots")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,6 @@
 """Tests for POST /api/save"""
 import csv
+import json
 import xml.etree.ElementTree as ET
 import main
 
@@ -108,3 +109,69 @@ def test_save_image_name_with_path_prefix_uses_stem_for_xml(client):
     _save(client, image_name="subdir/stemtest.png")
     xml_path = main.ANNOTATIONS_DIR / "annotations_voc" / "stemtest.xml"
     assert xml_path.exists()
+
+
+def test_save_creates_jsonl(client):
+    jsonl_path = main.ANNOTATIONS_DIR / "annotations.jsonl"
+    jsonl_path.unlink(missing_ok=True)
+    _save(client, image_name="jsonl_test.png")
+    assert jsonl_path.exists()
+
+
+def test_save_jsonl_record_format(client):
+    jsonl_path = main.ANNOTATIONS_DIR / "annotations.jsonl"
+    jsonl_path.unlink(missing_ok=True)
+
+    _save(
+        client,
+        image_name="jsonl_format.png",
+        bboxes=[{"x1": 1, "y1": 2, "x2": 3, "y2": 4, "label": "cat", "score": 0.8}],
+        width=640,
+        height=480,
+    )
+
+    lines = jsonl_path.read_text().strip().splitlines()
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["image"] == "jsonl_format.png"
+    assert record["width"] == 640
+    assert record["height"] == 480
+    assert len(record["annotations"]) == 1
+    ann = record["annotations"][0]
+    assert ann["label"] == "cat"
+    assert ann["bbox"] == [1, 2, 3, 4]
+    assert ann["score"] == 0.8
+
+
+def test_save_jsonl_omits_score_when_none(client):
+    jsonl_path = main.ANNOTATIONS_DIR / "annotations.jsonl"
+    jsonl_path.unlink(missing_ok=True)
+
+    _save(
+        client,
+        image_name="jsonl_noscore.png",
+        bboxes=[{"x1": 1, "y1": 2, "x2": 3, "y2": 4, "label": "dog", "score": None}],
+    )
+
+    record = json.loads(jsonl_path.read_text().strip())
+    assert "score" not in record["annotations"][0]
+
+
+def test_save_jsonl_appends_on_second_call(client):
+    jsonl_path = main.ANNOTATIONS_DIR / "annotations.jsonl"
+    jsonl_path.unlink(missing_ok=True)
+
+    _save(client, image_name="jsonl_append1.png")
+    _save(client, image_name="jsonl_append2.png")
+
+    lines = jsonl_path.read_text().strip().splitlines()
+    assert len(lines) == 2
+    images = [json.loads(l)["image"] for l in lines]
+    assert "jsonl_append1.png" in images
+    assert "jsonl_append2.png" in images
+
+
+def test_save_response_includes_jsonl_path(client):
+    resp = _save(client)
+    assert resp.status_code == 200
+    assert "jsonl_path" in resp.json()
