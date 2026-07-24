@@ -311,7 +311,7 @@ async def detect_objects(request: DetectionRequest):
 
 @app.post("/api/save")
 async def save_annotations(request: SaveAnnotationRequest):
-    """Save annotations to CSV and VOC XML format"""
+    """Save annotations to CSV, VOC XML, JSONL, and YOLO format"""
     try:
         from pascal_voc_writer import Writer
 
@@ -356,11 +356,57 @@ async def save_annotations(request: SaveAnnotationRequest):
         with open(jsonl_path, "a") as f:
             f.write(json.dumps(record) + "\n")
 
+        # Save to YOLO format
+        yolo_dir = ANNOTATIONS_DIR / "annotations_yolo"
+        yolo_dir.mkdir(exist_ok=True)
+
+        classes_path = yolo_dir / "classes.txt"
+
+        # Read existing classes to maintain stable IDs
+        classes = []
+        if classes_path.exists():
+            with open(classes_path, "r") as f:
+                classes = [line.strip() for line in f if line.strip()]
+
+        # Determine class IDs for current bboxes, adding new ones if necessary
+        for bbox in request.bboxes:
+            if bbox.label not in classes:
+                classes.append(bbox.label)
+
+        # Write updated classes.txt
+        with open(classes_path, "w") as f:
+            for cls_name in classes:
+                f.write(f"{cls_name}\n")
+
+        # Write YOLO annotation file
+        yolo_txt_path = yolo_dir / f"{base_name}.txt"
+        with open(yolo_txt_path, "w") as f:
+            for bbox in request.bboxes:
+                class_id = classes.index(bbox.label)
+
+                # YOLO format: normalized x_center y_center width height
+                img_w = request.image_width
+                img_h = request.image_height
+
+                x_center = ((bbox.x1 + bbox.x2) / 2) / img_w
+                y_center = ((bbox.y1 + bbox.y2) / 2) / img_h
+                width = (bbox.x2 - bbox.x1) / img_w
+                height = (bbox.y2 - bbox.y1) / img_h
+
+                # Ensure coordinates are within [0, 1]
+                x_center = max(0.0, min(1.0, x_center))
+                y_center = max(0.0, min(1.0, y_center))
+                width = max(0.0, min(1.0, width))
+                height = max(0.0, min(1.0, height))
+
+                f.write(f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}\n")
+
         return {
             "success": True,
             "csv_path": str(csv_path),
             "xml_path": str(xml_path),
             "jsonl_path": str(jsonl_path),
+            "yolo_path": str(yolo_txt_path),
         }
 
     except Exception as e:

@@ -85,6 +85,7 @@ Both interfaces produce identical output:
 |--------|----------|-------------|
 | CSV | `annotations/annotations.csv` | `image_path,x1,y1,x2,y2,label` per row |
 | Pascal VOC XML | `annotations/annotations_voc/` | One XML file per image |
+| YOLO | `annotations/annotations_yolo/` | One `.txt` file per image and `classes.txt` |
 
 ---
 

@@ -13,7 +13,7 @@ A browser-based image annotation tool built with React, TypeScript, and FastAPI.
 - **Auto-detection**: RetinaNet ResNet50 FPN V2 (COCO, 80 classes) with adjustable confidence threshold
 - **Manual annotation**: Click-and-drag to draw bounding boxes; click a box to select, then drag corners or edges to resize
 - **Auto-detect on load**: Optionally run detection automatically each time an image is opened
-- **Multiple export formats**: CSV and Pascal VOC XML
+- **Multiple export formats**: CSV, Pascal VOC XML, and YOLO
 - **Custom labels**: Add labels beyond the COCO set
 - **Dark / light theme**: Toggle in the header
 - **Keyboard shortcuts**: ← → to navigate images, Ctrl+S to save
@@ -105,6 +105,7 @@ Type a label name in **Add Custom Label** and press Enter or click **+**. Custom
 |--------|------|
 | CSV | `web/backend/annotations/annotations.csv` |
 | Pascal VOC XML | `web/backend/annotations/annotations_voc/<image>.xml` |
+| YOLO | `web/backend/annotations/annotations_yolo/<image>.txt` and `classes.txt` |
 
 CSV format: `image_name,x1,y1,x2,y2,label`
 
